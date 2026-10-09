@@ -1,4 +1,5 @@
 using System;
+using System.Data;
 using System.Data.SqlClient;
 using System.Drawing;
 using System.Windows.Forms;
@@ -236,12 +237,17 @@ namespace AppClubCalculatoare
         }
 
         // ════════════════════════════════════════════════════════════
-        //  CĂUTARE (decorativă — placeholder)
+        //  CĂUTARE GLOBALĂ (bara de sus) — Enter deschide prima tabelă
+        //  la care utilizatorul are drept și care conține rezultate.
         // ════════════════════════════════════════════════════════════
+
+        private const string PlaceholderCautare = "Caută echipamente, membri, sesiuni...";
 
         private void TxtSearch_KeyDown(object sender, KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.Enter) e.SuppressKeyPress = true;
+            if (e.KeyCode != Keys.Enter) return;
+            e.SuppressKeyPress = true;
+            CautaGlobal();
         }
 
         private void TxtSearch_GotFocus(object sender, EventArgs e)
@@ -257,10 +263,115 @@ namespace AppClubCalculatoare
         {
             if (string.IsNullOrWhiteSpace(txtSearch.Text))
             {
-                txtSearch.Text = "Caută echipamente, membri, sesiuni...";
+                txtSearch.Text = PlaceholderCautare;
                 txtSearch.ForeColor = Theme.TextMuted;
             }
         }
+
+        /// <summary>
+        /// Căutare globală: la Enter în bara de sus, deschide prima tabelă
+        /// (în ordinea din meniu) la care utilizatorul are drept de vizualizare
+        /// și care conține cel puțin o înregistrare potrivită. Dacă nicio tabelă
+        /// nu e permisă ⇒ mesaj de acces restricționat (fail-closed); dacă nu
+        /// există rezultate ⇒ mesaj explicit.
+        /// </summary>
+        private void CautaGlobal()
+        {
+            string text = txtSearch.Text;
+            if (text == PlaceholderCautare) text = "";
+            text = (text ?? "").Trim();
+
+            if (text.Length == 0) return;   // câmp gol ⇒ nimic
+
+            string[] tabele = { "Echipamente", "Sali", "Membri",
+                                "Sesiuni", "Rezervari", "Operatori" };
+
+            bool areVreunDrept = false;
+            foreach (string tabela in tabele)
+            {
+                string cod = PuncteAcces.CodMeniu(tabela);
+                if (cod == null) continue;                       // fail-closed
+                if (!PermissionService.VerificaAre(cod, EsteAdmin)) continue;
+                areVreunDrept = true;
+
+                if (!ExistaRezultate(tabela, text)) continue;
+
+                DeschideFormCRUD(tabela, TitluPentruTabela(tabela), text);
+                return;
+            }
+
+            if (!areVreunDrept)
+            {
+                AppLogger.Security(
+                    $"Acces blocat: '{SessionInfo.Username}' a incercat cautarea globala");
+                PermissionService.AfiseazaMesajAcces();
+                return;
+            }
+
+            MessageBox.Show(
+                $"Nu s-au găsit rezultate pentru «{text}».",
+                "Căutare", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+
+        private static string TitluPentruTabela(string tabela)
+        {
+            switch (tabela)
+            {
+                case "Echipamente": return "Gestionare Echipamente";
+                case "Sali":         return "Gestionare Sali";
+                case "Membri":       return "Gestionare Membri";
+                case "Sesiuni":      return "Gestionare Sesiuni";
+                case "Rezervari":    return "Gestionare Rezervari";
+                case "Operatori":    return "Gestionare Operatori";
+                default:             return tabela;
+            }
+        }
+
+        /// <summary>
+        /// Verifică rapid în baza de date dacă tabela conține cel puțin o
+        /// înregistrare a cărei coloane text (listă fixă = whitelist din cod)
+        /// conțin termenul căutat. Numele coloanelor provin din cod (nu de la
+        /// utilizator); valoarea este trimisă ca <see cref="SqlParameter"/>
+        /// (fără concatenare în SQL). Orice eroare de rețea ⇒ «nu există»
+        /// (mesajul de rezultate-goale va apărea, nu un crash).
+        /// </summary>
+        private bool ExistaRezultate(string tabela, string text)
+        {
+            string[] coloane;
+            switch (tabela)
+            {
+                case "Echipamente": coloane = new[] { "tip_echipament", "denumire", "oras", "status", "nume_sala", "operator_sef", "descriere" }; break;
+                case "Sali":         coloane = new[] { "nume_sala", "oras", "adresa", "operator_sef" }; break;
+                case "Operatori":    coloane = new[] { "nume", "prenume", "rol_club", "telefon", "email", "nume_sala" }; break;
+                case "Membri":       coloane = new[] { "nume", "prenume", "telefon", "email", "tip_membru", "oras_interes" }; break;
+                case "Sesiuni":      coloane = new[] { "echipament", "membru", "operator", "tip_sesiune", "status", "observatii" }; break;
+                case "Rezervari":    coloane = new[] { "echipament", "membru", "operator", "status", "observatii" }; break;
+                default:             return false;
+            }
+
+            try
+            {
+                var cond = new string[coloane.Length];
+                for (int i = 0; i < coloane.Length; i++)
+                    cond[i] = $"[{coloane[i]}] LIKE @q";
+
+                using (var conn = new SqlConnection(connectionString))
+                using (var cmd = new SqlCommand(
+                    $"SELECT TOP 1 1 FROM [{tabela}] WHERE {string.Join(" OR ", cond)}", conn))
+                {
+                    cmd.Parameters.Add("@q", SqlDbType.NVarChar, 200).Value = "%" + text + "%";
+                    conn.Open();
+                    return cmd.ExecuteScalar() != null;
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Warn("Căutare globală eșuată pe '" + tabela + "': " + ex.Message,
+                    "FormMainCuLogin.CautaGlobal");
+                return false;
+            }
+        }
+
 
         // ════════════════════════════════════════════════════════════
         //  ACȚIUNI BARA DE JOS
