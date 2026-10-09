@@ -299,32 +299,32 @@ namespace AppClubCalculatoare
 
             kpiEchipamente = new KpiCard
             {
-                Icon = "💻", Title = "Echipamente libere",
+                Icon = "\uEC0B", Title = "Echipamente libere",
                 Accent = Theme.Accent, Location = new Point(pad, row1), Size = new Size(cardW, cardH)
             };
             kpiSesiuni = new KpiCard
             {
-                Icon = "📋", Title = "Sesiuni în așteptare",
+                Icon = "\uE8F5", Title = "Sesiuni în așteptare",
                 Accent = Theme.Warning, Location = new Point(pad + cardW + gap, row1), Size = new Size(cardW, cardH)
             };
             kpiRezervari = new KpiCard
             {
-                Icon = "📅", Title = "Rezervări programate",
+                Icon = "\uE787", Title = "Rezervări programate",
                 Accent = Theme.Success, Location = new Point(pad + (cardW + gap) * 2, row1), Size = new Size(cardW, cardH)
             };
             kpiIncasareLuna = new KpiCard
             {
-                Icon = "💰", Title = "Încasare pe perioadă",
+                Icon = "\uE8AF", Title = "Încasare pe perioadă",
                 Accent = Theme.Accent, Location = new Point(pad, row2), Size = new Size(cardW, cardH)
             };
             kpiIncasareTotal = new KpiCard
             {
-                Icon = "🏆", Title = "Încasare totală",
+                Icon = "\uEC58", Title = "Încasare totală",
                 Accent = Color.FromArgb(0xA7, 0xB6, 0xFF), Location = new Point(pad + cardW + gap, row2), Size = new Size(cardW, cardH)
             };
             kpiPortofoliu = new KpiCard
             {
-                Icon = "📦", Title = "Valoare portofoliu",
+                Icon = "\uE9D8", Title = "Valoare portofoliu",
                 Accent = Color.FromArgb(0x6D, 0x8B, 0xFF), Location = new Point(pad + (cardW + gap) * 2, row2), Size = new Size(cardW, cardH)
             };
 

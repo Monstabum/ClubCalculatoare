@@ -94,8 +94,8 @@ namespace AppClubCalculatoare
 
             var lblSearchIcon = new Label
             {
-                Text      = "\U0001F50D",
-                Font      = new Font("Segoe UI Emoji", 11f),
+                Text      = "\uE721",   // glif Segoe Fluent Icons: lupă
+                Font      = new Font("Segoe Fluent Icons", 14f),
                 ForeColor = MaterialTheme.TextSecondary,
                 AutoSize  = true,
                 Location  = new Point(10, 8),

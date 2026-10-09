@@ -6,8 +6,9 @@ using System.Windows.Forms;
 namespace AppClubCalculatoare.UI
 {
     /// <summary>
-    /// Buton de navigare pentru sidebar. Afișează o pictogramă emoji,
-    /// un text și, opțional, un badge numeric. Se evidențiază când e activ.
+    /// Buton de navigare pentru sidebar. Afișează o pictogramă (glif
+    /// Segoe Fluent Icons), un text și, opțional, un badge numeric.
+    /// Se evidențiază când e activ. Tooltip-ul se atașează automat din text.
     /// </summary>
     internal class NavButton : Button
     {
@@ -16,11 +17,18 @@ namespace AppClubCalculatoare.UI
 
         private bool _hover;
         private bool _active;
+        private bool _tooltipAtasat;
 
         public bool Active
         {
             get => _active;
             set { _active = value; Invalidate(); }
+        }
+
+        public override string Text
+        {
+            get { return base.Text; }
+            set { base.Text = value; AsiguraTooltip(); }
         }
 
         public NavButton()
@@ -36,6 +44,14 @@ namespace AppClubCalculatoare.UI
             Cursor = Cursors.Hand;
             TextAlign = ContentAlignment.MiddleLeft;
             Padding = new Padding(0);
+            ParentChanged += (s, e) => AsiguraTooltip();
+        }
+
+        private void AsiguraTooltip()
+        {
+            if (_tooltipAtasat || string.IsNullOrEmpty(Text)) return;
+            _tooltipAtasat = true;
+            MaterialUIHelper.AtasareTooltip(this, Text, Text);
         }
 
         protected override void OnMouseEnter(EventArgs e)
@@ -74,7 +90,7 @@ namespace AppClubCalculatoare.UI
             if (back != Color.Transparent)
             {
                 var rect = new Rectangle(2, 1, Math.Max(1, Width - 5), Math.Max(1, Height - 3));
-                using (var path = RoundedPath(rect, Theme.RadiusSmall))
+                using (var path = MaterialTheme.RoundedPath(rect, Theme.RadiusSmall))
                 {
                     using (var brush = new SolidBrush(back))
                         g.FillPath(brush, path);
@@ -89,20 +105,18 @@ namespace AppClubCalculatoare.UI
                     using (var brush = new SolidBrush(MaterialTheme.Accent))
                     {
                         var stripe = new Rectangle(4, Height / 2 - 11, 3, 22);
-                        using (var path = RoundedPath(stripe, 2))
+                        using (var path = MaterialTheme.RoundedPath(stripe, 2))
                             g.FillPath(brush, path);
                     }
                 }
             }
 
-            // Pictogramă
+            // Pictogramă (glif Segoe Fluent Icons, centrat vertical)
             int x = 16;
             if (!string.IsNullOrEmpty(Icon))
             {
-                using (var f = new Font("Segoe UI Emoji", 11f))
-                    TextRenderer.DrawText(g, Icon, f,
-                        new Point(x, (Height - 20) / 2),
-                        _active ? Color.White : fore, TextFormatFlags.Default);
+                MaterialTheme.DrawGlyph(g, Icon, new Point(x, (Height - 20) / 2),
+                    13f, _active ? Color.White : fore);
                 x += 30;
             }
 
@@ -124,26 +138,13 @@ namespace AppClubCalculatoare.UI
                 int bY = (Height - bH) / 2;
 
                 using (var brush = new SolidBrush(Theme.Warning))
-                using (var path = RoundedPath(new Rectangle(bX, bY, bW, bH), 10))
+                using (var path = MaterialTheme.RoundedPath(new Rectangle(bX, bY, bW, bH), 10))
                     g.FillPath(brush, path);
 
                 TextRenderer.DrawText(g, BadgeText, fBadge,
                     new Rectangle(bX, bY, bW, bH), Color.White,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             }
-        }
-
-        private static GraphicsPath RoundedPath(Rectangle r, int radius)
-        {
-            int rad = Math.Min(radius, Math.Min(r.Width, r.Height) / 2);
-            var path = new GraphicsPath();
-            path.StartFigure();
-            path.AddArc(r.X, r.Y, rad * 2, rad * 2, 180, 90);
-            path.AddArc(r.Right - rad * 2, r.Y, rad * 2, rad * 2, 270, 90);
-            path.AddArc(r.Right - rad * 2, r.Bottom - rad * 2, rad * 2, rad * 2, 0, 90);
-            path.AddArc(r.X, r.Bottom - rad * 2, rad * 2, rad * 2, 90, 90);
-            path.CloseFigure();
-            return path;
         }
     }
 }

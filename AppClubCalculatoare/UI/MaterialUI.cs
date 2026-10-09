@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
@@ -59,6 +60,30 @@ namespace AppClubCalculatoare.UI
 
         /// <summary>Adaugă transparență (alpha 0..255) unei culori.</summary>
         public static Color WithAlpha(Color c, int alpha) => Color.FromArgb(alpha, c);
+
+        /// <summary>Familia de glife pentru pictogramele din interfață.</summary>
+        public const string GlyphFont = "Segoe Fluent Icons";
+
+        /// <summary>
+        /// Desenează un glif Segoe Fluent Icons (fallback „Segoe MDL2 Assets”),
+        /// centrat pe înălțime într-un rând la poziția dată.
+        /// Render independent de locală (spre deosebire de fontul Emoji).
+        /// </summary>
+        public static void DrawGlyph(Graphics g, string glyph, Point location, float sizePx, Color color)
+        {
+            if (g == null || string.IsNullOrEmpty(glyph)) return;
+            var font = new Font(GlyphFont, sizePx);
+            try
+            {
+                var rect = new Rectangle(location.X, location.Y, 30, (int)Math.Ceiling(sizePx) + 8);
+                TextRenderer.DrawText(g, glyph, font, rect, color,
+                    TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+            }
+            finally
+            {
+                font.Dispose();
+            }
+        }
 
         /// <summary>
         /// Scalează o valoare din pixeli logici (96 DPI) la DPI-ul ecranului
@@ -492,10 +517,8 @@ namespace AppClubCalculatoare.UI
 
             int x = 30;
             if (!string.IsNullOrEmpty(_icon))
-            {
-                using (var f = new Font("Segoe UI Emoji", 18f))
-                    TextRenderer.DrawText(g, _icon, f, new Point(x, 16), _hover ? _accent : MaterialTheme.TextSecondary);
-            }
+                MaterialTheme.DrawGlyph(g, _icon, new Point(x, 12), 20f,
+                    _hover ? _accent : MaterialTheme.TextSecondary);
             TextRenderer.DrawText(g, _title ?? string.Empty, MaterialTheme.FontSubtitle,
                 new Rectangle(x, 48, Width - x - 12, 24), MaterialTheme.TextPrimary,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis);
@@ -517,6 +540,53 @@ namespace AppClubCalculatoare.UI
     /// </summary>
     internal static class MaterialUIHelper
     {
+        // ── Accesibilitate: tooltip-uri cache-uite pe formă ───────
+        // Un singur ToolTip per formă (evită leak-ul GDI al mai multor
+        // instanțe). Eliberat la FormClosed al formei gazdă.
+        private static readonly Dictionary<Form, ToolTip> _tooltips =
+            new Dictionary<Form, ToolTip>();
+
+        /// <summary>
+        /// Atașează tooltip + metadate de accesibilitate (<see cref="Control.AccessibleName"/>,
+        /// <see cref="Control.AccessibleDescription"/>) unui control. ToolTip-ul este
+        /// partajat pe formă și eliberat automat la FormClosed.
+        /// </summary>
+        public static void AtasareTooltip(Control control, string titlu, string text)
+        {
+            if (control == null || string.IsNullOrEmpty(text)) return;
+            Form form = control.FindForm();
+            if (form == null) return;
+
+            ToolTip tt;
+            lock (_tooltips)
+            {
+                if (!_tooltips.TryGetValue(form, out tt))
+                {
+                    tt = new ToolTip
+                    {
+                        AutoPopDelay = 8000,
+                        InitialDelay = 400,
+                        ReshowDelay = 120,
+                        ShowAlways = true
+                    };
+                    _tooltips[form] = tt;
+                    form.FormClosed += (s, e) =>
+                    {
+                        lock (_tooltips)
+                        {
+                            tt.Dispose();
+                            _tooltips.Remove(form);
+                        }
+                    };
+                }
+            }
+
+            tt.SetToolTip(control, string.IsNullOrEmpty(titlu) ? text : titlu + "\n" + text);
+            if (string.IsNullOrEmpty(control.AccessibleName))
+                control.AccessibleName = string.IsNullOrEmpty(titlu) ? text : titlu;
+            control.AccessibleDescription = text;
+        }
+
         public static MaterialButton Button(string text, MaterialButtonStyle style, int width)
         {
             return new MaterialButton

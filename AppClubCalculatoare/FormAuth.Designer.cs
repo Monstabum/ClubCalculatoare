@@ -198,13 +198,13 @@ namespace AppClubCalculatoare
             // 
             this.lblLogo.BackColor = System.Drawing.Color.Transparent;
             this.lblLogo.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lblLogo.Font = new System.Drawing.Font("Segoe UI Emoji", 20F);
+            this.lblLogo.Font = new System.Drawing.Font("Segoe Fluent Icons", 24F);
             this.lblLogo.ForeColor = System.Drawing.Color.White;
             this.lblLogo.Location = new System.Drawing.Point(0, 0);
             this.lblLogo.Name = "lblLogo";
             this.lblLogo.Size = new System.Drawing.Size(48, 48);
             this.lblLogo.TabIndex = 0;
-            this.lblLogo.Text = "🏠";
+            this.lblLogo.Text = "\uE80F";
             this.lblLogo.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // lblTitlu
@@ -257,13 +257,13 @@ namespace AppClubCalculatoare
             // 
             this.lblUserIcon.AutoSize = true;
             this.lblUserIcon.BackColor = System.Drawing.Color.Transparent;
-            this.lblUserIcon.Font = new System.Drawing.Font("Segoe UI Emoji", 10F);
+            this.lblUserIcon.Font = new System.Drawing.Font("Segoe Fluent Icons", 14F);
             this.lblUserIcon.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)117))), ((int)(((byte)117))), ((int)(((byte)117))));
             this.lblUserIcon.Location = new System.Drawing.Point(12, 10);
             this.lblUserIcon.Name = "lblUserIcon";
             this.lblUserIcon.Size = new System.Drawing.Size(21, 17);
             this.lblUserIcon.TabIndex = 0;
-            this.lblUserIcon.Text = "👤";
+            this.lblUserIcon.Text = "\uE77B";
             // 
             // txtUser
             // 
@@ -308,13 +308,13 @@ namespace AppClubCalculatoare
             // 
             this.lblPassIcon.AutoSize = true;
             this.lblPassIcon.BackColor = System.Drawing.Color.Transparent;
-            this.lblPassIcon.Font = new System.Drawing.Font("Segoe UI Emoji", 10F);
+            this.lblPassIcon.Font = new System.Drawing.Font("Segoe Fluent Icons", 14F);
             this.lblPassIcon.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)117))), ((int)(((byte)117))), ((int)(((byte)117))));
             this.lblPassIcon.Location = new System.Drawing.Point(12, 10);
             this.lblPassIcon.Name = "lblPassIcon";
             this.lblPassIcon.Size = new System.Drawing.Size(21, 17);
             this.lblPassIcon.TabIndex = 0;
-            this.lblPassIcon.Text = "🔒";
+            this.lblPassIcon.Text = "\uE72E";
             // 
             // txtParola
             // 

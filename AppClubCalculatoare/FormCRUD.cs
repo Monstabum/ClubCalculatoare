@@ -193,11 +193,11 @@ namespace AppClubCalculatoare
 
             var lblSearchIcon = new Label
             {
-                Text = "\U0001F50D",
-                Font = new System.Drawing.Font("Segoe UI Emoji", 11f),
+                Text = "\uE721",   // glif Segoe Fluent Icons: lupă
+                Font = new System.Drawing.Font(MaterialTheme.GlyphFont, 12f),
                 ForeColor = MaterialTheme.TextSecondary,
                 AutoSize = true,
-                Location = new System.Drawing.Point(10, 8),
+                Location = new System.Drawing.Point(10, 7),
                 BackColor = System.Drawing.Color.Transparent
             };
             searchBox.Controls.Add(lblSearchIcon);

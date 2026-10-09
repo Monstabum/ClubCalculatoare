@@ -130,13 +130,13 @@ namespace AppClubCalculatoare
             // lblSearchIcon
             // 
             this.lblSearchIcon.AutoSize = true;
-            this.lblSearchIcon.Font = new System.Drawing.Font("Segoe UI Emoji", 9F);
+            this.lblSearchIcon.Font = new System.Drawing.Font("Segoe Fluent Icons", 13F);
             this.lblSearchIcon.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)148))), ((int)(((byte)163))), ((int)(((byte)184))));
             this.lblSearchIcon.Location = new System.Drawing.Point(10, 7);
             this.lblSearchIcon.Name = "lblSearchIcon";
             this.lblSearchIcon.Size = new System.Drawing.Size(19, 17);
             this.lblSearchIcon.TabIndex = 0;
-            this.lblSearchIcon.Text = "🔍";
+            this.lblSearchIcon.Text = "\uE721";
             // 
             // txtSearch
             // 

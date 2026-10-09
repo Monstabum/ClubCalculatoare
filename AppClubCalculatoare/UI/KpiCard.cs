@@ -82,11 +82,7 @@ namespace AppClubCalculatoare.UI
             // Iconiță + titlu
             int y = 14;
             if (!string.IsNullOrEmpty(_icon))
-            {
-                using (var f = new Font("Segoe UI Emoji", 10f))
-                    TextRenderer.DrawText(g, _icon, f,
-                        new Point(18, y), Theme.TextMuted);
-            }
+                MaterialTheme.DrawGlyph(g, _icon, new Point(18, y), 12f, Theme.TextMuted);
             TextRenderer.DrawText(g, _title, Theme.SmallBold,
                 new Rectangle(42, y, Width - 58, 18), Theme.TextMuted,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter |

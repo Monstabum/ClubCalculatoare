@@ -55,6 +55,10 @@ namespace AppClubCalculatoare
             btnMax   = new WindowButton { Kind = WindowButtonKind.Maximize,  Name = "btnWinMax" };
             btnClose = new WindowButton { Kind = WindowButtonKind.Close,    Name = "btnWinClose" };
 
+            MaterialUIHelper.AtasareTooltip(btnMin,   "Minimizare", "Minimizează fereastra în bara de activități.");
+            MaterialUIHelper.AtasareTooltip(btnMax,   "Maximizare", "Mărește fereastra pe tot ecranul (sau o readuce la dimensiunea anterioară).");
+            MaterialUIHelper.AtasareTooltip(btnClose, "Închidere",  "Închide aplicația.");
+
             btnMin.Click   += (s, e) => WindowState = FormWindowState.Minimized;
             btnMax.Click   += (s, e) => ComutaMaximizare();
             btnClose.Click += (s, e) => Close();
@@ -170,6 +174,14 @@ namespace AppClubCalculatoare
             MaterialTheme.ApplyRounded(pnlLogo, 6);
             MaterialTheme.ApplyRounded(searchBox, 8);
             MaterialTheme.ApplyRounded(avatar, 19);
+
+            // Accesibilitate: tooltip + nume accesibile pentru elementele pur iconice
+            MaterialUIHelper.AtasareTooltip(lblSearchIcon, "Căutare",
+                "Caută în echipamente, săli, membri, sesiuni, rezervări și operatori. Apasă Enter.");
+            MaterialUIHelper.AtasareTooltip(avatar, "Utilizator curent",
+                string.IsNullOrEmpty(numeUtilizator) ? "Utilizator conectat." : "Utilizator conectat: " + numeUtilizator + ".");
+            if (txtSearch != null)
+                txtSearch.AccessibleName = "Căutare globală";
 
             AplicaPermisiuniSidebar();
         }
