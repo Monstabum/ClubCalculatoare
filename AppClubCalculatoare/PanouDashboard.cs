@@ -4,6 +4,7 @@ using System.Data;
 using System.Data.SqlClient;
 using System.Drawing;
 using System.Globalization;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.DataVisualization.Charting;
 using AppClubCalculatoare.UI;
@@ -104,7 +105,7 @@ namespace AppClubCalculatoare
             this.Dock = DockStyle.Fill;
             ConstruiesteInterfata();
             this.Resize += (s, e) => AplicaLayoutResponsiv();
-            Reincarca();
+            IncarcaAsincron();
         }
 
         private void AplicaLayoutResponsiv()
@@ -868,6 +869,108 @@ namespace AppClubCalculatoare
                     lbl.ForeColor = Theme.Danger;
                     lbl.Text = "Indicatori indisponibili: " + ex.Message;
                 }
+            }
+        }
+
+        // ════════════════════════════════════════════════════════════
+        //  ÎNCĂRCARE ASINCRONĂ CU INDICATOR (§4.4)
+        //  Afișează un indicator înainte de a încărca datele, astfel încât
+        //  fereastra să nu pară „blocată”. Reincarca() atinge controale UI
+        //  (carduri KPI, chart-uri, combo-uri, etichete), deci rulează pe
+        //  thread-ul UI — amânarea de mai jos doar permite message loop-ului
+        //  să picteze indicatorul ÎNAINTE de interogările SQL (pe SQL local
+        //  acestea sunt sub 100 ms, iar pe rețea eroarea rămâne tratată).
+        // ════════════════════════════════════════════════════════════
+        private Panel _overlayIncarcare;
+
+        private async void IncarcaAsincron()
+        {
+            ArataIncarcare(true);
+            await Task.Delay(80);   // lasă message loop-ul să picteze indicatorul
+            try
+            {
+                Reincarca();
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Error(ex, "PanouDashboard.IncarcaAsincron");
+                MessageBox.Show(
+                    "Nu s-au putut încărca datele tabloului de bord.\n\n" + ex.Message,
+                    "Eroare", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+            finally
+            {
+                ArataIncarcare(false);
+            }
+        }
+
+        /// <summary>
+        /// Afișează/ascunde un indicator central de încărcare (culori din
+        /// MaterialTheme). Overlay-ul este eliberat complet la final.
+        /// </summary>
+        private void ArataIncarcare(bool activ)
+        {
+            if (activ)
+            {
+                if (_overlayIncarcare != null) return;
+
+                var overlay = new Panel
+                {
+                    Dock = DockStyle.Fill,
+                    BackColor = MaterialTheme.Background
+                };
+
+                var tlp = new TableLayoutPanel
+                {
+                    Dock = DockStyle.Fill,
+                    ColumnCount = 1,
+                    RowCount = 2,
+                    BackColor = MaterialTheme.Background
+                };
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
+                tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
+
+                var progress = new ProgressBar
+                {
+                    Style = ProgressBarStyle.Marquee,
+                    MarqueeAnimationSpeed = 30,
+                    Width = MaterialTheme.Scale(240),
+                    Height = MaterialTheme.Scale(6),
+                    Anchor = AnchorStyles.None
+                };
+
+                var lbl = new Label
+                {
+                    Text = "Se încarcă datele tabloului de bord…",
+                    Font = MaterialTheme.FontBody,
+                    ForeColor = MaterialTheme.TextSecondary,
+                    AutoSize = true,
+                    Anchor = AnchorStyles.None,
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+
+                tlp.Controls.Add(progress, 0, 0);
+                tlp.Controls.Add(lbl, 0, 1);
+                overlay.Controls.Add(tlp);
+
+                this.Controls.Add(overlay);
+                overlay.BringToFront();
+                _overlayIncarcare = overlay;
+            }
+            else
+            {
+                if (_overlayIncarcare == null) return;
+                try
+                {
+                    this.Controls.Remove(_overlayIncarcare);
+                    _overlayIncarcare.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    AppLogger.Warn("Eliminare indicator încărcare: " + ex.Message,
+                        "PanouDashboard.ArataIncarcare");
+                }
+                _overlayIncarcare = null;
             }
         }
 
