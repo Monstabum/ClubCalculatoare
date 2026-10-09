@@ -31,7 +31,7 @@ namespace AppClubCalculatoare.UI
                      ControlStyles.ResizeRedraw, true);
             FlatStyle = FlatStyle.Flat;
             FlatAppearance.BorderSize = 0;
-            Height = 42;
+            Height = MaterialTheme.Scale(42);
             Font = Theme.NavFont;
             Cursor = Cursors.Hand;
             TextAlign = ContentAlignment.MiddleLeft;

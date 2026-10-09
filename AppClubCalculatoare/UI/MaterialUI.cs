@@ -60,6 +60,29 @@ namespace AppClubCalculatoare.UI
         /// <summary>Adaugă transparență (alpha 0..255) unei culori.</summary>
         public static Color WithAlpha(Color c, int alpha) => Color.FromArgb(alpha, c);
 
+        /// <summary>
+        /// Scalează o valoare din pixeli logici (96 DPI) la DPI-ul ecranului
+        /// curent. Permite controalelor construite în cod (înălțimi/lățimi
+        /// hardcodate) să urmeze scalarea Windows pe 125% / 150%.
+        /// Fără ecran/GDI rămâne valoarea logică.
+        /// </summary>
+        public static int Scale(int px)
+        {
+            try
+            {
+                using (var g = Graphics.FromHwnd(IntPtr.Zero))
+                {
+                    float dpi = g.DpiX;
+                    if (dpi <= 0f || Math.Abs(dpi - 96f) < 0.5f) return px;
+                    return (int)Math.Round(px * dpi / 96f);
+                }
+            }
+            catch
+            {
+                return px;   // fără ecran/GDI — rămâne valoarea logică
+            }
+        }
+
         // ── Helper: regiune cu colturi rotunjite ──────────────────
         public static void ApplyRounded(Control control, int radius)
         {

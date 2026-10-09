@@ -51,7 +51,7 @@ namespace AppClubCalculatoare.UI
                      ControlStyles.OptimizedDoubleBuffer |
                      ControlStyles.ResizeRedraw, true);
             BackColor = Theme.Surface;
-            Height = 110;
+            Height = MaterialTheme.Scale(110);
         }
 
         protected override void OnResize(EventArgs e)

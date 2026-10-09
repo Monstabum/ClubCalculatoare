@@ -28,7 +28,7 @@ namespace AppClubCalculatoare.UI
             BackColor = Theme.Surface;                          // плотный по умолчанию, НЕ Transparent
             Font = Theme.BodyBold;
             Cursor = Cursors.Hand;
-            Height = 36;
+            Height = MaterialTheme.Scale(36);
             Padding = new Padding(12, 0, 12, 0);
             UseVisualStyleBackColor = false;
         }

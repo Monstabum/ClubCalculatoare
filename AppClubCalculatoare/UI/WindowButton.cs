@@ -27,7 +27,7 @@ namespace AppClubCalculatoare.UI
                      ControlStyles.OptimizedDoubleBuffer |
                      ControlStyles.ResizeRedraw |
                      ControlStyles.SupportsTransparentBackColor, true);
-            Size = new Size(46, 32);
+            Size = new Size(MaterialTheme.Scale(46), MaterialTheme.Scale(32));
             Cursor = Cursors.Hand;
             BackColor = Color.Transparent;
         }
