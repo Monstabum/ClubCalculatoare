@@ -621,6 +621,8 @@ namespace AppClubCalculatoare
         // FIX_04: păstrăm referința la filtru ca să-l putem scoate la închidere (fără leak după login/logout repetat).
         private FiltruActivitate _filtru;
         private DateTime _ultimaActivitate = DateTime.Now;
+        // FIX_06.3: afișăm dialogul de avertizare o singură dată per ciclu de expirare.
+        private bool _avertismentExpirareAratat;
 
         private void CreeazaTimerInactivitate()
         {
@@ -633,6 +635,27 @@ namespace AppClubCalculatoare
             _timerInactivitate = new System.Windows.Forms.Timer { Interval = 30000 };
             _timerInactivitate.Tick += (s, e) =>
             {
+                double ramas = timeoutMin - (DateTime.Now - _ultimaActivitate).TotalMinutes;
+
+                if (ramas >= 1.0)   // din nou activ / încă mult timp — resetăm avertizarea
+                {
+                    _avertismentExpirareAratat = false;
+                    return;
+                }
+
+                // FIX_06.3: la aproximativ o minut înainte de expirare, avertizăm
+                // și oferim posibilitatea de a prelungi sesiunea.
+                if (ramas > 0 && !_avertismentExpirareAratat)
+                {
+                    _avertismentExpirareAratat = true;
+                    if (ArataAvertizareExpirare())
+                    {
+                        _ultimaActivitate = DateTime.Now;      // prelungire sesiune
+                        _avertismentExpirareAratat = false;
+                        return;
+                    }
+                }
+
                 if ((DateTime.Now - _ultimaActivitate).TotalMinutes >= timeoutMin)
                 {
                     _timerInactivitate.Stop();
@@ -652,6 +675,24 @@ namespace AppClubCalculatoare
             _timerInactivitate.Start();
             // FIX_04: curățăm timer-ul și filtrul la închiderea formei — fără „Sesiune expirata" din sesiuni moarte.
             this.FormClosed += (s, e) => CurataResurseInactivitate();
+        }
+
+        /// <summary>
+        /// Dialog de avertizare înainte de deconectarea automată.
+        /// Întoarce true dacă utilizatorul alege să prelungească sesiunea.
+        /// </summary>
+        private bool ArataAvertizareExpirare()
+        {
+            var rezultat = MessageBox.Show(
+                "Sesiunea va expira în mai puțin de un minut din cauza inactivității.\n\n" +
+                "Dorești să rămâi conectat?",
+                "Sesiune pe cale să expire",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+            if (rezultat == DialogResult.Yes)
+                AppLogger.Info("Sesiune prelungită de utilizator la avertizarea de expirare.",
+                    "FormMainCuLogin");
+            return rezultat == DialogResult.Yes;
         }
 
         // FIX_04: oprește timer-ul și scoate message-filter-ul (anti-leak după cicluri login/logout).
