@@ -35,6 +35,9 @@ namespace AppClubCalculatoare
         private string rolUtilizator;
         private DataGridView dgv;
 
+        // §6.2: eticheta afișată când grila nu are rânduri (stare goală).
+        private Label _lblEmpty;
+
         // MODUL_FOTO: cache miniaturi (id_foto -> Image) + placeholder.
         // Nu se reincarca de pe disc la fiecare redesenare; se elibereaza
         // la inchiderea formei (OnFormClosed).
@@ -107,7 +110,21 @@ namespace AppClubCalculatoare
             MaterialUIHelper.StyleGrid(dgv, EsteAdmin ? MaterialTheme.Primary : MaterialTheme.Success);
             dgv.CellDoubleClick += DgvOperator_CellDoubleClick;
             dgv.CellFormatting += DgvSesiuni_CellFormatting;
+            dgv.DataBindingComplete += (s, e) => ActualizeazaStareGoala();
             gridInner.Controls.Add(dgv);
+
+            // ── Mesaj „stare goală" afișat peste grila goală (§6.2) ──
+            _lblEmpty = new Label
+            {
+                Dock = DockStyle.Fill,
+                TextAlign = System.Drawing.ContentAlignment.MiddleCenter,
+                Font = MaterialTheme.FontSubtitle,
+                ForeColor = MaterialTheme.TextSecondary,
+                BackColor = System.Drawing.Color.Transparent,
+                Visible = false
+            };
+            gridInner.Controls.Add(_lblEmpty);
+            _lblEmpty.BringToFront();
 
             // ── Bara inferioara (Dock.Bottom): actiuni + inchidere ──
             FlowLayoutPanel leftBottom, rightBottom;
@@ -119,14 +136,20 @@ namespace AppClubCalculatoare
                 var btnAdauga = MaterialUIHelper.Button("\u2795  Adaug\u0103", MaterialButtonStyle.Success, 130);
                 btnAdauga.Click += BtnAdauga_Click;
                 leftBottom.Controls.Add(btnAdauga);
+                MaterialUIHelper.AtasareTooltip(btnAdauga, "Adaugă", "Creează o înregistrare nouă în acest tabel.");
+
 
                 var btnModifica = MaterialUIHelper.Button("\u2710  Modific\u0103", MaterialButtonStyle.Primary, 130);
                 btnModifica.Click += BtnModifica_Click;
                 leftBottom.Controls.Add(btnModifica);
+                MaterialUIHelper.AtasareTooltip(btnModifica, "Modifică", "Editează înregistrarea selectată din tabel.");
+
 
                 var btnSterge = MaterialUIHelper.Button("\U0001F5D1  \u0218terge", MaterialButtonStyle.Danger, 130);
                 btnSterge.Click += BtnSterge_Click;
                 leftBottom.Controls.Add(btnSterge);
+                MaterialUIHelper.AtasareTooltip(btnSterge, "Șterge", "Șterge definitiv înregistrarea selectată.");
+
             }
             else
             {
@@ -138,10 +161,14 @@ namespace AppClubCalculatoare
                     var btnAdauga = MaterialUIHelper.Button("\u2795  Adaug\u0103", MaterialButtonStyle.Success, 130);
                     btnAdauga.Click += BtnAdauga_Click;
                     leftBottom.Controls.Add(btnAdauga);
+                    MaterialUIHelper.AtasareTooltip(btnAdauga, "Adaugă", "Creează o înregistrare nouă în acest tabel.");
+
 
                     var btnModifica = MaterialUIHelper.Button("\u2710  Modific\u0103", MaterialButtonStyle.Primary, 130);
                     btnModifica.Click += BtnModifica_Click;
                     leftBottom.Controls.Add(btnModifica);
+                    MaterialUIHelper.AtasareTooltip(btnModifica, "Modifică", "Editează înregistrarea selectată din tabel.");
+
                 }
 
                 if (codStg != null && PermissionService.AreUI(codStg))
@@ -149,6 +176,8 @@ namespace AppClubCalculatoare
                     var btnSterge = MaterialUIHelper.Button("\U0001F5D1  \u0218terge", MaterialButtonStyle.Danger, 130);
                     btnSterge.Click += BtnSterge_Click;
                     leftBottom.Controls.Add(btnSterge);
+                    MaterialUIHelper.AtasareTooltip(btnSterge, "Șterge", "Șterge definitiv înregistrarea selectată.");
+
                 }
 
                 if (!PermissionService.AreUI(codMod) && !PermissionService.AreUI(codStg))
@@ -156,12 +185,16 @@ namespace AppClubCalculatoare
                     var btnDetalii = MaterialUIHelper.Button("\U0001F441  Vizualizare detalii", MaterialButtonStyle.Primary, 200);
                     btnDetalii.Click += BtnDetalii_Click;
                     leftBottom.Controls.Add(btnDetalii);
+                    MaterialUIHelper.AtasareTooltip(btnDetalii, "Vizualizare detalii", "Deschide detaliile complete ale înregistrării selectate.");
+
                 }
             }
 
             var btnPrint = MaterialUIHelper.Button("\U0001F5A8  Tip\u0103re\u0219te", MaterialButtonStyle.Secondary, 140);
             btnPrint.Click += BtnPrint_Click;
             rightBottom.Controls.Add(btnPrint);
+            MaterialUIHelper.AtasareTooltip(btnPrint, "Tipărește", "Generează și trimite la imprimantă lista curentă.");
+
 
             // FAVORITE: comutarea echipamentului selectat in lista de
             // favorite a utilizatorului curent (doar la Echipamente).
@@ -172,11 +205,15 @@ namespace AppClubCalculatoare
                     "\u2B50  Comut\u0103 favorite", MaterialButtonStyle.Warning, 190);
                 btnFav.Click += BtnFavorit_Click;
                 leftBottom.Controls.Add(btnFav);
+                MaterialUIHelper.AtasareTooltip(btnFav, "Comută favorite", "Adaugă sau scoate echipamentul selectat din lista ta de favorite.");
+
             }
 
             var btnInchide = MaterialUIHelper.Button("\u2716  \u00cenchide", MaterialButtonStyle.Outline, 120);
             btnInchide.Click += (s, e) => this.Close();
             rightBottom.Controls.Add(btnInchide);
+            MaterialUIHelper.AtasareTooltip(btnInchide, "Închide", "Închide fereastra curentă.");
+
 
             // ── Toolbar sus (Dock.Top, 60px): cautare + refresh + total
             var toolbar = MaterialUIHelper.Toolbar();
@@ -325,6 +362,41 @@ namespace AppClubCalculatoare
                 AppLogger.Warn("ActualizeazaTotal esuat: " + ex.Message, "FormCRUD");
             }
             lblTotal.Text = "Total: " + n + " înregistrări";
+        }
+
+        /// <summary>
+        /// §6.2 — afișează un mesaj explicativ, centrat, atunci când grila nu
+        /// are niciun rând (fie tabela e goală, fie filtrul nu dă rezultate).
+        /// Se apelează după fiecare legătură de date (DataBindingComplete).
+        /// </summary>
+        private void ActualizeazaStareGoala()
+        {
+            if (_lblEmpty == null || dgv == null) return;
+            try
+            {
+                int n;
+                if (dgv.DataSource is DataTable dt) n = dt.Rows.Count;
+                else if (dgv.DataSource is DataView dv) n = dv.Count;
+                else n = dgv.Rows.Count;
+
+                if (n == 0)
+                {
+                    string actiune = EsteAdmin
+                        ? "Apasă Adaugă pentru a crea prima înregistrare."
+                        : "Contactează un administrator.";
+                    _lblEmpty.Text =
+                        "Nicio înregistrare.\n" + actiune;
+                    _lblEmpty.Visible = true;
+                }
+                else
+                {
+                    _lblEmpty.Visible = false;
+                }
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Warn("ActualizeazaStareGoala esuat: " + ex.Message, "FormCRUD");
+            }
         }
 
         // ════════════════════════════════════════════════════════════
