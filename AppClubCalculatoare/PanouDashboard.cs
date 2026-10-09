@@ -64,7 +64,7 @@ namespace AppClubCalculatoare
                    && zile > 0 && zile <= 3650
                 ? zile : implicit_;
         }
-        // FIX_21: lunile se afișează în română indiferent de limba Windows (pe OS rus apărea „июнь/нояб" în interfața română).
+        // FIX_21: lunile se afișează în română indiferent de limba Windows (pe un OS rus apăreau nume de luni chirilice în interfața română).
         private static readonly CultureInfo CulturaRo = new CultureInfo("ro-RO");
 
         public event Action<int, bool> AlertaDoubleClick;

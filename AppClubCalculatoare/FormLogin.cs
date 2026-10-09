@@ -14,7 +14,7 @@ namespace AppClubCalculatoare
         public bool   Autentificat   { get; private set; } = false;
         public string RolUtilizator  { get; private set; } = "";
         public string NumeUtilizator { get; private set; } = "";
-        // FIX_01: логин для SessionInfo (NumeUtilizator = ФИО для UI, Username = логин для БД/аудита)
+        // FIX_01: login-ul real pentru SessionInfo (NumeUtilizator = nume complet pentru UI, Username = login pentru BD/audit)
         public string Username { get; private set; } = "";
 
         private int          _tentativeEsuate = 0;
@@ -121,7 +121,7 @@ namespace AppClubCalculatoare
                 Autentificat       = true;
                 RolUtilizator      = rezultat.Rol == "Admin" ? "Administrator" : "Utilizator";
                 NumeUtilizator     = rezultat.NumeComplet;
-                // FIX_01: păstrăm login-ul real pentru SessionInfo/audit/permisiuni (NumeUtilizator rămâne ФИО pentru UI)
+                // FIX_01: păstrăm login-ul real pentru SessionInfo/audit/permisiuni (NumeUtilizator rămâne nume complet pentru UI)
                 Username = username;
 
                 PermissionService.IncarcaPermisiuni(username, RolUtilizator == "Administrator");

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Windows.Forms;
 
 namespace AppClubCalculatoare
@@ -61,7 +61,7 @@ namespace AppClubCalculatoare
                         break;
 
                     // ── Seteaza SessionInfo pentru audit trail ───────
-                    // FIX_01: логин, не ФИО — Username pentru БД/аудит, NumeComplet (ФИО) pentru UI
+                    // FIX_01: login-ul real, nu numele complet — Username pentru BD/audit, NumeComplet (nume complet) pentru UI
                     SessionInfo.Username    = loginForm.Username;
                     SessionInfo.NumeComplet = loginForm.NumeUtilizator;
                     SessionInfo.Rol         = loginForm.RolUtilizator;
@@ -74,7 +74,7 @@ namespace AppClubCalculatoare
 
                         if (mainForm.DialogResult == DialogResult.Retry)
                         {
-                            // FIX_01: logăm login-ul real, nu ФИО
+                            // FIX_01: logăm login-ul real, nu numele complet
                             AppLogger.Security($"Deconectare: {loginForm.Username}");
                             SessionInfo.Reset();
                             continue;

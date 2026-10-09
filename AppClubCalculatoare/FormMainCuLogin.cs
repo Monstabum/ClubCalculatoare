@@ -858,7 +858,7 @@ namespace AppClubCalculatoare
         {
             try
             {
-                // FIX_03: transmitem login-ul real (SessionInfo.Username), nu ФИО — altfel AuthService nu găsește utilizatorul.
+                // FIX_03: transmitem login-ul real (SessionInfo.Username), nu numele complet — altfel AuthService nu găsește utilizatorul.
                 var frm = new FormSchimbareParola(SessionInfo.Username);
                 frm.ShowDialog();
             }

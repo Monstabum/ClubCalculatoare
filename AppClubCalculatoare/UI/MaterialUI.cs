@@ -284,7 +284,7 @@ namespace AppClubCalculatoare.UI
             FlatAppearance.BorderSize = 0;
             FlatAppearance.MouseOverBackColor = Color.Empty;
             FlatAppearance.MouseDownBackColor = Color.Empty;
-            BackColor = MaterialTheme.Surface;                            // плотный, НЕ Transparent
+            BackColor = MaterialTheme.Surface;                            // opac, NU Transparent
             Font = MaterialTheme.FontButton;
             Cursor = Cursors.Hand;
             Height = 38;
