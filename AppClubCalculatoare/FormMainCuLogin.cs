@@ -124,6 +124,7 @@ namespace AppClubCalculatoare
             InitializeComponent();
             ConfigurareChromeFereastra();
             IncarcaDateUtilizator();
+            AplicaPictograme();
             ConstruiesteContinut();
             CreeazaTimerInactivitate();
         }
@@ -147,6 +148,28 @@ namespace AppClubCalculatoare
                 afisUtilizator.IndexOf(rolUtilizator, StringComparison.OrdinalIgnoreCase) < 0)
                 afisUtilizator += "  (" + rolUtilizator + ")";
             lblStatusUser.Text = "Conectat: " + afisUtilizator;
+        }
+
+        // ════════════════════════════════════════════════════════════
+        //  PICTOGRAME SIDEBAR — glife Segoe Fluent Icons (MDL2).
+        //  Designerul stochează vechile emoji; le suprascriem în cod cu
+        //  codepoints MDL2 stabile pe toate versiunile de Windows (§5.3).
+        // ════════════════════════════════════════════════════════════
+        private void AplicaPictograme()
+        {
+            if (navEchipamente != null) navEchipamente.Icon = "\uEC0B";  // laptop
+            if (navSali         != null) navSali.Icon         = "\uE7F8";  // clădire
+            if (navMembri       != null) navMembri.Icon       = "\uE716";  // persoane
+            if (navSesiuni      != null) navSesiuni.Icon      = "\uE8F5";  // listă
+            if (navRezervari    != null) navRezervari.Icon    = "\uE787";  // calendar
+            if (navFavorite     != null) navFavorite.Icon     = "\uE734";  // stea
+            if (navCalculator   != null) navCalculator.Icon   = "\uE8EF";  // calculator
+            if (navOperatori    != null) navOperatori.Icon    = "\uE77C";  // persoană
+            if (navRapoarte     != null) navRapoarte.Icon     = "\uE9F5";  // grafic
+            if (navUtilizatori  != null) navUtilizatori.Icon  = "\uE77B";  // grup
+            if (navProfil       != null) navProfil.Icon       = "\uE77B";  // profil
+            if (navParola       != null) navParola.Icon       = "\uE192";  // cheie
+            if (navDeconectare  != null) navDeconectare.Icon  = "\uE7E8";  // ieșire
         }
 
         // ════════════════════════════════════════════════════════════
@@ -494,31 +517,31 @@ namespace AppClubCalculatoare
             contentPanel.Controls.SetChildIndex(flow, 0);
             flow.BringToFront();
 
-            AddMenuCard(flow, "💻", "Echipamente", "Gestionare echipamente",
+            AddMenuCard(flow, "\uEC0B", "Echipamente", "Gestionare echipamente",
                 MaterialTheme.Primary, MaterialTheme.PrimaryLight, PuncteAcces.MeniuEchipamente,
                 () => DeschideFormCRUD("Echipamente", "Gestionare Echipamente"));
-            AddMenuCard(flow, "🏢", "Sali", "Gestionare sali",
+            AddMenuCard(flow, "\uE7F8", "Sali", "Gestionare sali",
                 MaterialTheme.Info, MaterialTheme.Accent, PuncteAcces.MeniuSali,
                 () => DeschideFormCRUD("Sali", "Gestionare Sali"));
-            AddMenuCard(flow, "👥", "Membri", "Gestionare membri",
+            AddMenuCard(flow, "\uE716", "Membri", "Gestionare membri",
                 MaterialTheme.Success, MaterialTheme.Accent, PuncteAcces.MeniuMembri,
                 () => DeschideFormCRUD("Membri", "Gestionare Membri"));
-            AddMenuCard(flow, "📋", "Sesiuni", "Gestionare sesiuni",
+            AddMenuCard(flow, "\uE8F5", "Sesiuni", "Gestionare sesiuni",
                 MaterialTheme.Warning, MaterialTheme.Accent, PuncteAcces.MeniuSesiuni,
                 () => DeschideFormCRUD("Sesiuni", "Gestionare Sesiuni"));
-            AddMenuCard(flow, "📅", "Rezervări", "Gestionare rezervări",
+            AddMenuCard(flow, "\uE787", "Rezervări", "Gestionare rezervări",
                 MaterialTheme.Accent, MaterialTheme.PrimaryLight, PuncteAcces.MeniuRezervari,
                 () => DeschideFormCRUD("Rezervari", "Gestionare Rezervari"));
-            AddMenuCard(flow, "🧑‍💼", "Operatori", "Gestionare operatori",
+            AddMenuCard(flow, "\uE77C", "Operatori", "Gestionare operatori",
                 MaterialTheme.PrimaryDark, MaterialTheme.PrimaryLight, PuncteAcces.MeniuOperatori,
                 () => DeschideFormCRUD("Operatori", "Gestionare Operatori"));
-            AddMenuCard(flow, "📊", "Rapoarte", "Rapoarte și statistici",
+            AddMenuCard(flow, "\uE9F5", "Rapoarte", "Rapoarte și statistici",
                 MaterialTheme.Primary, MaterialTheme.PrimaryLight, PuncteAcces.MeniuRapoarte,
                 () => DeschideFormRapoarte());
-            AddMenuCard(flow, "⭐", "Favorite", "Echipamentele tale favorite",
+            AddMenuCard(flow, "\uE734", "Favorite", "Echipamentele tale favorite",
                 MaterialTheme.Accent, MaterialTheme.PrimaryLight, PuncteAcces.Favorite,
                 () => DeschideFormFavorite());
-            AddMenuCard(flow, "🧮", "Calculator Cost", "Cost orar, durată, pachet și reduceri",
+            AddMenuCard(flow, "\uE8EF", "Calculator Cost", "Cost orar, durată, pachet și reduceri",
                 MaterialTheme.Info, MaterialTheme.Accent, PuncteAcces.CalculatorCost,
                 () => DeschideFormCalculatorCost());
         }
