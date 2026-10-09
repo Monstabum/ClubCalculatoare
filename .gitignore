@@ -1,0 +1,8 @@
+# Visual Studio — directoare de build/intermediare
+bin/
+obj/
+.vs/
+
+# Fișiere locale de utilizator Visual Studio
+*.user
+*.suo

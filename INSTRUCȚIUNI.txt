@@ -1,0 +1,48 @@
+﻿INSTRUCȚIUNI — AppClubCalculatoare (WinForms, .NET Framework 4.7.2)
+============================================================
+
+1) BAZA DE DATE — varianta rapidă (recomandat):
+   Dublu-click pe BD\Instaleaza_BD.bat (din folderul BD).
+   Instalare NOUA = toate cele 7 scripturi dintr-un foc; ACTUALIZARE =
+   doar pasii 2-7, fara pierderi (pastreaza datele si pozele).
+   Necesita sqlcmd (vine cu SQL Server). Serverul implicit este
+   .\SQLEXPRESS; alt server: Instaleaza_BD.bat NUME_SERVER MOD.
+
+   Varianta manuală (SSMS, în această ordine):
+   1. BD\ClubCalculatoare.sql
+   2. BD\AuditLog.sql            (creează AuditLog + coloana email)
+   3. BD\Autentificare_Update.sql (INSERT folosește coloana email,
+      deci email trebuie să existe deja — vezi pasul 2)
+   4. BD\Permisiuni.sql          (tabele Permisiuni/UtilizatoriPermisiuni,
+      coloanele tentative_esuate/blocat_pana_la, view-urile
+      vw_SesiuniComplete și vw_EchipamenteDisponibile)
+   5. BD\MigrareFoto.sql         (tabela EchipamentFoto + indexuri +
+      permisiunile FOTO_VIZUALIZARE_ECHIPAMENTE/FOTO_MODIFICARE_ECHIPAMENTE)
+   6. BD\Favorite.sql            (tabela Favorite + permisiunea FAVORITE)
+   7. BD\CalculatorCost.sql      (permisiunea CALCULATOR_COST)
+   Toate scripturile sunt idempotente (re-rulabile).
+
+2) CONNECTION STRING (AppClubCalculatoare\App.config):
+   - Implicit: Data Source=.\SQLEXPRESS  (SQL Server Express).
+   - Alternativ (comentată în fișier): Data Source=.  (SQL Server
+     standard/Developer, instanța implicită).
+   Decomentează varianta potrivită instalării tale.
+
+3) SMTP (resetare parolă): completează în App.config, <appSettings>:
+   SmtpHost, SmtpPort, SmtpUser, SmtpPassword, SmtpFrom.
+   Fără ele, resetarea afișează „SMTP neconfigurat" și NU schimbă parola.
+
+4) POZE DEMO (opțional): rulează Instrumente\gen_poze_demo.py (necesită
+   Pillow: pip install pillow) pentru a regenera imaginile din PozeDemo\.
+   La compilare, pozele sunt copiate automat lângă executabil.
+
+5) CURĂȚARE + COMPILARE:
+   - Închide Visual Studio.
+   - Șterge folderele: AppClubCalculatoare\bin\, AppClubCalculatoare\obj\, .vs\
+   - Deschide AppClubCalculatoare.sln(x), apoi Build → Rebuild Solution.
+   - Țintă: C# 7.3, fără erori/avertismente CS0xxx.
+
+6) AUTENTIFICARE (după scripturi):
+   - admin: Constantin / 121212 (Admin — Administrator)
+   - user:  Maxim / 575757 (User — Utilizator)
+   Drepturile user-ului se acordă din „Permisiuni" (FormUtilizatori).
