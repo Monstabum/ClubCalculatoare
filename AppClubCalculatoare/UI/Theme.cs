@@ -4,15 +4,12 @@ using System.Windows.Forms;
 namespace AppClubCalculatoare.UI
 {
     /// <summary>
-    /// Strat istoric de compatibilitate peste <see cref="MaterialTheme"/>.
+    /// Strat de compatibilitate peste <see cref="MaterialTheme"/> (alias pur).
     ///
-    /// PACHET-1 (BUG-14 complet): valorile suprapuse NU mai sunt duplicate —
-    /// fiecare culoare/dimensiune comuna redirectioneaza catre constanta
-    /// canonica din MaterialTheme (aceleasi valori ARGB, zero schimbare
-    /// vizuala). Doar membrii fara echivalent (TextDim, BorderStrong,
-    /// AccentSoft, WarningSoft, Radius*, SidebarW, fonturile H*/Nav*/Kpi*)
-    /// raman definiti aici. Codul nou trebuie sa foloseasca direct
-    /// MaterialTheme.
+    /// Toate valorile (culori, dimensiuni, fonturi) sunt acum definite o singură
+    /// dată în <see cref="MaterialTheme"/>; aici se face doar redirecționare, cu
+    /// aceleași valori ARGB — zero schimbare vizuală. Codul nou trebuie să
+    /// folosească direct MaterialTheme.
     /// </summary>
     internal static class Theme
     {
@@ -31,30 +28,30 @@ namespace AppClubCalculatoare.UI
 
         // ── Culori fara echivalent in MaterialTheme (definite o singura data, aici) ──
         // Adaptate pentru tema inchisa: tonuri soft folosite pe fundal petrol.
-        public static readonly Color TextDim = Color.FromArgb(0x64, 0x74, 0x8B);
-        public static readonly Color BorderStrong = Color.FromArgb(0x33, 0x40, 0x5A);
-        public static readonly Color AccentSoft = Color.FromArgb(0x2A, 0x23, 0x50);  // violet soft pe inchis
-        public static readonly Color WarningSoft = Color.FromArgb(0x3A, 0x2E, 0x12); // galben soft pe inchis
+        public static Color TextDim     => MaterialTheme.TextDim;
+        public static Color BorderStrong => MaterialTheme.BorderStrong;
+        public static Color AccentSoft   => MaterialTheme.AccentSoft;
+        public static Color WarningSoft  => MaterialTheme.WarningSoft;
 
-        public const int Radius = 10;
+        public const int Radius = MaterialTheme.ButtonRadius;
         public const int RadiusSmall = 6;
-        public const int SidebarW = 230;
+        public const int SidebarW = MaterialTheme.SidebarW;
         public const int TopBarH = MaterialTheme.TopBarH;
 
         public const string FontFamily = MaterialTheme.FontFamily;
-        public static readonly Font H1 = new Font(FontFamily, 18f, FontStyle.Bold);
-        public static readonly Font H2 = new Font(FontFamily, 14f, FontStyle.Bold);
-        public static readonly Font H3 = new Font(FontFamily, 11.5f, FontStyle.Bold);
-        public static readonly Font Body = new Font(FontFamily, 9.5f);
-        public static readonly Font BodyBold = new Font(FontFamily, 9.5f, FontStyle.Bold);
-        public static readonly Font Small = new Font(FontFamily, 8.5f);
-        public static readonly Font SmallBold = new Font(FontFamily, 8.5f, FontStyle.Bold);
-        public static readonly Font Caption = new Font(FontFamily, 8f);
-        public static readonly Font CaptionItalic = new Font(FontFamily, 8f, FontStyle.Italic);
-        public static readonly Font NavFont = new Font(FontFamily, 10f);
-        public static readonly Font NavFontActive = new Font(FontFamily, 10f, FontStyle.Bold);
-        public static readonly Font KpiValue = new Font(FontFamily, 21f, FontStyle.Bold);
-        public static readonly Font KpiUnit = new Font(FontFamily, 9f, FontStyle.Bold);
+        public static Font H1             => MaterialTheme.H1;
+        public static Font H2             => MaterialTheme.H2;
+        public static Font H3             => MaterialTheme.H3;
+        public static Font Body           => MaterialTheme.Body;
+        public static Font BodyBold       => MaterialTheme.BodyBold;
+        public static Font Small          => MaterialTheme.Small;
+        public static Font SmallBold      => MaterialTheme.SmallBold;
+        public static Font Caption        => MaterialTheme.Caption;
+        public static Font CaptionItalic  => MaterialTheme.CaptionItalic;
+        public static Font NavFont        => MaterialTheme.NavFont;
+        public static Font NavFontActive  => MaterialTheme.NavFontActive;
+        public static Font KpiValue       => MaterialTheme.KpiValue;
+        public static Font KpiUnit        => MaterialTheme.KpiUnit;
 
         // PACHET-1: wrapper peste MaterialTheme.ApplyRounded — o singura implementare.
         public static void Rounded(Control control, int radius)

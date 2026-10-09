@@ -43,7 +43,7 @@ namespace AppClubCalculatoare.UI
             g.Clear(Parent?.BackColor ?? Theme.Background);
 
             var rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            using (var path = RoundedPath(rect, CornerRadius))
+            using (var path = MaterialTheme.RoundedPath(rect, CornerRadius))
             {
                 using (var brush = new SolidBrush(SurfaceColor))
                     g.FillPath(brush, path);
@@ -54,19 +54,6 @@ namespace AppClubCalculatoare.UI
                         g.DrawPath(pen, path);
                 }
             }
-        }
-
-        private static GraphicsPath RoundedPath(Rectangle r, int radius)
-        {
-            int rad = Math.Min(radius, Math.Min(r.Width, r.Height) / 2);
-            var path = new GraphicsPath();
-            path.StartFigure();
-            path.AddArc(r.X, r.Y, rad * 2, rad * 2, 180, 90);
-            path.AddArc(r.Right - rad * 2, r.Y, rad * 2, rad * 2, 270, 90);
-            path.AddArc(r.Right - rad * 2, r.Bottom - rad * 2, rad * 2, rad * 2, 0, 90);
-            path.AddArc(r.X, r.Bottom - rad * 2, rad * 2, rad * 2, 90, 90);
-            path.CloseFigure();
-            return path;
         }
     }
 }

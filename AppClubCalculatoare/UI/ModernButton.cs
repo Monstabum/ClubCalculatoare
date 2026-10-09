@@ -20,12 +20,13 @@ namespace AppClubCalculatoare.UI
                      ControlStyles.UserPaint |
                      ControlStyles.OptimizedDoubleBuffer |
                      ControlStyles.ResizeRedraw |
-                     ControlStyles.SupportsTransparentBackColor, true);  // ФИКС
+                     ControlStyles.SupportsTransparentBackColor, true);  // necesar pentru fundaluri custom
             FlatStyle = FlatStyle.Flat;
             FlatAppearance.BorderSize = 0;
-            FlatAppearance.MouseOverBackColor = Color.Empty;   // не даём стандартному слою красить чёрным
+            // Nu lăsăm stratul standard să pinteze fundalul la hover/apăsare — desenăm noi totul.
+            FlatAppearance.MouseOverBackColor = Color.Empty;
             FlatAppearance.MouseDownBackColor = Color.Empty;
-            BackColor = Theme.Surface;                          // плотный по умолчанию, НЕ Transparent
+            BackColor = Theme.Surface;                          // dens implicit, NU Transparent
             Font = Theme.BodyBold;
             Cursor = Cursors.Hand;
             Height = MaterialTheme.Scale(36);
@@ -46,7 +47,7 @@ namespace AppClubCalculatoare.UI
             var g = pevent.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            // ФИКС: никогда не Clear-им прозрачным — берём первый плотный цвет по цепочке.
+            // Nu golitim niciodată cu transparent — luăm primul culoare dens pe lanțul de părinți.
             Color bg = Theme.ResolveOpaqueBackground(this, Theme.Surface);
             g.Clear(bg);
 
@@ -61,9 +62,9 @@ namespace AppClubCalculatoare.UI
             }
 
             var rect = new Rectangle(0, 0, Math.Max(1, Width - 1), Math.Max(1, Height - 1));
-            using (var path = RoundedPath(rect, CornerRadius))
+            using (var path = MaterialTheme.RoundedPath(rect, CornerRadius))
             {
-                using (var brush = new SolidBrush(back))           // back ВСЕГДА плотный
+                using (var brush = new SolidBrush(back))           // back e ÎNTOTDEAUNA dens
                     g.FillPath(brush, path);
                 if (border.A > 16 && border.ToArgb() != back.ToArgb())
                     using (var pen = new Pen(border, 1f))
@@ -75,7 +76,7 @@ namespace AppClubCalculatoare.UI
                 TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
         }
 
-        // bg — плотный резолвнутый фон; все «прозрачные» состояния заменяются на bg / Blend(bg, …).
+        // bg — fundal dens rezolvat; toate stările „transparente” sunt înlocuite cu bg / Blend(bg, …).
         private void ResolveColors(Color bg, out Color back, out Color fore, out Color border)
         {
             switch (Variant)
@@ -107,19 +108,6 @@ namespace AppClubCalculatoare.UI
                 default:
                     back = Theme.Accent; fore = Color.White; border = back; break;
             }
-        }
-
-        private static GraphicsPath RoundedPath(Rectangle r, int radius)
-        {
-            int rad = Math.Min(radius, Math.Min(r.Width, r.Height) / 2);
-            var path = new GraphicsPath();
-            path.StartFigure();
-            path.AddArc(r.X, r.Y, rad * 2, rad * 2, 180, 90);
-            path.AddArc(r.Right - rad * 2, r.Y, rad * 2, rad * 2, 270, 90);
-            path.AddArc(r.Right - rad * 2, r.Bottom - rad * 2, rad * 2, rad * 2, 0, 90);
-            path.AddArc(r.X, r.Bottom - rad * 2, rad * 2, rad * 2, 90, 90);
-            path.CloseFigure();
-            return path;
         }
     }
 }
