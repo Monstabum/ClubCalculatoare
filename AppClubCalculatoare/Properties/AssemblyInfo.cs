@@ -31,3 +31,7 @@ using System.Runtime.InteropServices;
 //
 [assembly: AssemblyVersion("1.0.0.0")]
 [assembly: AssemblyFileVersion("1.0.0.0")]
+
+// Permite proiectului de unit-test (AppClubCalculatoare.Teste) să acceseze
+// tipurile interne (AuthService, PermissionService, FormCRUD, PanouDashboard).
+[assembly: InternalsVisibleTo("AppClubCalculatoare.Teste")]
