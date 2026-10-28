@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -288,7 +288,7 @@ namespace AppClubCalculatoare
         {
             try
             {
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     conn.Open();
                     int ordine;
@@ -349,7 +349,7 @@ namespace AppClubCalculatoare
             List<FotoInfo> rezultat = new List<FotoInfo>();
             try
             {
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     const string sql = @"
                         SELECT id_foto, id_echipament, nume_fisier, nume_original,
@@ -386,7 +386,7 @@ namespace AppClubCalculatoare
         {
             try
             {
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     const string sql = @"
                         SELECT TOP 1 id_foto, id_echipament, nume_fisier, nume_original,
@@ -425,7 +425,7 @@ namespace AppClubCalculatoare
             if (m != "orig" && m != "thumb" && m != "medium") return null;
             try
             {
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     const string sql = @"
                         SELECT id_echipament, nume_fisier
@@ -503,7 +503,7 @@ namespace AppClubCalculatoare
             }
             try
             {
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     conn.Open();
                     int idEchipament;
@@ -572,7 +572,7 @@ namespace AppClubCalculatoare
             }
             try
             {
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     const string sql = @"
                         UPDATE EchipamentFoto SET descriere = @d WHERE id_foto = @f";
@@ -608,7 +608,7 @@ namespace AppClubCalculatoare
             if (idFotosInOrdine == null || idFotosInOrdine.Count == 0) return false;
             try
             {
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     conn.Open();
                     using (var tr = conn.BeginTransaction())
@@ -675,7 +675,7 @@ namespace AppClubCalculatoare
                 using (Bitmap medium = CreeazaMedium(imagine, MediumSize))
                     SalveazaJpeg(medium, foto.CaleMedium, 85);
 
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     const string sql = @"
                         UPDATE EchipamentFoto SET latime = @lat, inaltime = @inalt WHERE id_foto = @f";
@@ -708,7 +708,7 @@ namespace AppClubCalculatoare
         {
             try
             {
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     const string sql = @"
                         SELECT id_foto, id_echipament, nume_fisier, nume_original,
@@ -753,7 +753,7 @@ namespace AppClubCalculatoare
             CompleteazaCai(foto);
             try
             {
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     conn.Open();
                     using (var cmd = new SqlCommand(
@@ -809,7 +809,7 @@ namespace AppClubCalculatoare
             try
             {
                 int count;
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     conn.Open();
                     using (var cmd = new SqlCommand(
@@ -864,7 +864,7 @@ namespace AppClubCalculatoare
                     StringComparer.OrdinalIgnoreCase);
                 List<Tuple<int, string>> caiDb = new List<Tuple<int, string>>();
 
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     const string sql = @"
                         SELECT id_foto, id_echipament, nume_fisier FROM EchipamentFoto";
@@ -957,7 +957,7 @@ namespace AppClubCalculatoare
         {
             try
             {
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     const string sql = @"
                         IF OBJECT_ID('AuditLog','U') IS NOT NULL

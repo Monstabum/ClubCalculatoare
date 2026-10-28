@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using AppClubCalculatoare.UI;
 
@@ -25,6 +28,12 @@ namespace AppClubCalculatoare
             this.StartPosition = FormStartPosition.CenterParent;
             this.BackColor     = MaterialTheme.Background;
             this.Font          = MaterialTheme.FontBody;
+
+            // DPI: scalare uniformă (fereastra este DPI-aware) + titlu închis.
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode       = AutoScaleMode.Dpi;
+            WindowChrome.EnableDarkTitleBar(this);
+
             BuildUI();
             IncarcaUtilizatori();
         }
@@ -33,7 +42,7 @@ namespace AppClubCalculatoare
 
         private void BuildUI()
         {
-            // ── Zona centrala (Dock.Fill) — adaugata PRIMA ─────────
+            // -- Zona centrala (Dock.Fill) — adaugata PRIMA ---------
             var content = MaterialUIHelper.ContentPanel();
             this.Controls.Add(content);
 
@@ -52,26 +61,26 @@ namespace AppClubCalculatoare
             MaterialUIHelper.StyleGrid(dgv, MaterialTheme.Primary);
             gridInner.Controls.Add(dgv);
 
-            // ── Bara inferioara split (Dock.Bottom) ─────────────────
+            // -- Bara inferioara split (Dock.Bottom) -----------------
             FlowLayoutPanel leftBottom, rightBottom;
             var bottomBar = MaterialUIHelper.SplitBottomBar(out leftBottom, out rightBottom);
             this.Controls.Add(bottomBar);
 
-            CreBtn(leftBottom, "➕  Adaugă", MaterialButtonStyle.Success, 130).Click += BtnAdauga_Click;
-            CreBtn(leftBottom, "🔑  Resetează parola", MaterialButtonStyle.Primary, 170).Click += BtnReseteazaParola_Click;
-            CreBtn(leftBottom, "🔄  Activ / Inactiv", MaterialButtonStyle.Secondary, 155).Click += BtnToggleActiv_Click;
-            CreBtn(leftBottom, "🎭  Schimbă rol", MaterialButtonStyle.Secondary, 140).Click += BtnSchimbaRol_Click;
-            CreBtn(leftBottom, "🛡️  Permisiuni", MaterialButtonStyle.Secondary, 140).Click += BtnPermisiuni_Click;
+            CreBtn(leftBottom, "Adaugă", MaterialButtonStyle.Success, 130).Click += BtnAdauga_Click;
+            CreBtn(leftBottom, "Resetează parola", MaterialButtonStyle.Primary, 170).Click += BtnReseteazaParola_Click;
+            CreBtn(leftBottom, "Activ / Inactiv", MaterialButtonStyle.Secondary, 155).Click += BtnToggleActiv_Click;
+            CreBtn(leftBottom, "Schimbă rol", MaterialButtonStyle.Secondary, 140).Click += BtnSchimbaRol_Click;
+            CreBtn(leftBottom, "Permisiuni", MaterialButtonStyle.Secondary, 140).Click += BtnPermisiuni_Click;
 
-            CreBtn(rightBottom, "🕘  Istoric", MaterialButtonStyle.Secondary, 130).Click += BtnIstoricDrepturi_Click;
-            CreBtn(rightBottom, "✖  Închide", MaterialButtonStyle.Outline, 120).Click += (s, e) => this.Close();
+            CreBtn(rightBottom, "Istoric", MaterialButtonStyle.Secondary, 130).Click += BtnIstoricDrepturi_Click;
+            CreBtn(rightBottom, "Închide", MaterialButtonStyle.Outline, 120).Click += (s, e) => this.Close();
 
-            // ── Toolbar sus (Dock.Top, 60px): refresh + total ───────
+            // -- Toolbar sus (Dock.Top, 60px): refresh + total -------
             var toolbar = MaterialUIHelper.Toolbar();
             this.Controls.Add(toolbar);
 
-            var btnRefresh = MaterialUIHelper.Button("🔁  Reîncarcă", MaterialButtonStyle.Secondary, 140, 36);
-            btnRefresh.Location = new Point(12, 11);
+            var btnRefresh = MaterialUIHelper.Button("Reîncarcă", MaterialButtonStyle.Secondary, 140);
+            btnRefresh.Location = new Point(12, 12);
             btnRefresh.Click += (s, e) => IncarcaUtilizatori();
             toolbar.Controls.Add(btnRefresh);
 
@@ -91,16 +100,16 @@ namespace AppClubCalculatoare
             };
             lblTotalUtilizatori.Location = new Point(800, 20);
 
-            // ── Header colorat (Dock.Top) — adaugat ULTIMUL ─────────
+            // -- Header colorat (Dock.Top) — adaugat ULTIMUL ---------
             var header = MaterialUIHelper.Header(
                 "Gestionare utilizatori", "Administrare conturi · roluri · permisiuni [Admin]",
                 null, MaterialTheme.Primary);
             this.Controls.Add(header);
         }
 
-        // ══════════════════════════════════════════════════════════
+        // ==========================================================
         //  ISTORIC DREPTURI (audit dedicat — vizibil doar aici)
-        // ══════════════════════════════════════════════════════════
+        // ==========================================================
         private void BtnIstoricDrepturi_Click(object sender, EventArgs e)
         {
             using (var frm = new FormAuditDrepturi(_connStr))
@@ -111,7 +120,7 @@ namespace AppClubCalculatoare
         {
             try
             {
-                using (var conn = new SqlConnection(_connStr))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     // Nu expunem hash-ul parolei in grila
                     const string sql = @"
@@ -140,8 +149,17 @@ namespace AppClubCalculatoare
                     // Coloreaza randurile inactive
                     foreach (DataGridViewRow row in dgv.Rows)
                         if (row.Cells["Status"].Value?.ToString() == "Inactiv")
-                            row.DefaultCellStyle.BackColor =
-                                System.Drawing.Color.FromArgb(255, 230, 230);
+                        {
+                            // Pe grila inchisa, rozul deschis (#FFE6E6) cu
+                            // textul alb al temei facea randul ilizibil.
+                            // Folosim un ton cald de suprafata + text roz luminos.
+                            row.DefaultCellStyle.BackColor = MaterialTheme.HighlightDanger;
+                            row.DefaultCellStyle.ForeColor = MaterialTheme.DangerBright;
+                            row.DefaultCellStyle.SelectionBackColor =
+                                MaterialTheme.Blend(Design.Surface, Design.Alpha(Design.Danger, 90));
+                            row.DefaultCellStyle.SelectionForeColor =
+                                MaterialTheme.DangerBright;
+                        }
                 }
             }
             catch (Exception ex)
@@ -152,9 +170,9 @@ namespace AppClubCalculatoare
             }
         }
 
-        // ════════════════════════════════════════════════════════════
+        // ============================================================
         //  ADAUGA UTILIZATOR
-        // ════════════════════════════════════════════════════════════
+        // ============================================================
         private void BtnAdauga_Click(object sender, EventArgs e)
         {
             using (var frm = new FormAdaugaUtilizator(_connStr))
@@ -164,9 +182,9 @@ namespace AppClubCalculatoare
             }
         }
 
-        // ════════════════════════════════════════════════════════════
+        // ============================================================
         //  RESETEAZA PAROLA
-        // ════════════════════════════════════════════════════════════
+        // ============================================================
         private void BtnReseteazaParola_Click(object sender, EventArgs e)
         {
             if (dgv.SelectedRows.Count == 0)
@@ -178,7 +196,7 @@ namespace AppClubCalculatoare
 
             string username = dgv.SelectedRows[0].Cells["Username"].Value.ToString();
 
-            // FIX_17: dialog custom cu PasswordChar + confirmare — parola nu mai este vizibilă pe ecran (InputBox o arăta în clar).
+            // FIX_17: dialog custom cu PasswordChar + confirmare — parola nu mai este vizibila pe ecran (InputBox o arata in clar).
             string parolaNoua;
             using (var dlg = new FormResetareParola(username))
             {
@@ -190,8 +208,8 @@ namespace AppClubCalculatoare
 
             if (parolaNoua.Length < 6)
             {
-                MessageBox.Show("Parola trebuie sa aiba minim 6 caractere!",
-                    "Parola prea scurta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Parola trebuie să aibă minim 6 caractere!",
+                    "Parolă prea scurtă", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
@@ -199,7 +217,7 @@ namespace AppClubCalculatoare
             {
                 string hash = AuthService.HashParola(parolaNoua);
 
-                using (var conn = new SqlConnection(_connStr))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     conn.Open();
                     const string sql = @"
@@ -219,7 +237,7 @@ namespace AppClubCalculatoare
                     $"Admin '{SessionInfo.Username}' a resetat parola pentru '{username}'");
                 PermissionService.AuditDrepturi("UPDATE",
                     $"Admin '{SessionInfo.Username}' a resetat parola lui '{username}'");
-                MessageBox.Show($"Parola pentru '{username}' a fost resetata cu succes!",
+                MessageBox.Show($"Parola pentru '{username}' a fost resetată cu succes!",
                     "Succes", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             catch (Exception ex)
@@ -230,9 +248,9 @@ namespace AppClubCalculatoare
             }
         }
 
-        // ════════════════════════════════════════════════════════════
+        // ============================================================
         //  ACTIVEAZA / DEZACTIVEAZA CONT
-        // ════════════════════════════════════════════════════════════
+        // ============================================================
         private void BtnToggleActiv_Click(object sender, EventArgs e)
         {
             if (dgv.SelectedRows.Count == 0)
@@ -246,23 +264,26 @@ namespace AppClubCalculatoare
             string username    = dgv.SelectedRows[0].Cells["Username"].Value.ToString();
             bool   esteActiv   = dgv.SelectedRows[0].Cells["Status"].Value.ToString() == "Activ";
             string actiuneText = esteActiv ? "dezactiva" : "activa";
+            // FIX: forma de prezent se obține corect doar prin conjugare separată —
+            // „{actiuneText}zi" producea „dezactivazi"/„activazi" (incorect).
+            string actiunePrezent = esteActiv ? "dezactivezi" : "activezi";
 
             // Nu permite dezactivarea contului propriu
             if (username == SessionInfo.Username)
             {
-                MessageBox.Show("Nu iti poti dezactiva propriul cont!",
-                    "Operatie nepermisa", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Nu îți poți dezactiva propriul cont!",
+                    "Operație nepermisă", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
-            if (MessageBox.Show(
-                $"Esti sigur ca vrei sa {actiuneText}zi contul '{username}'?",
-                "Confirmare", MessageBoxButtons.YesNo, MessageBoxIcon.Question)
-                != DialogResult.Yes) return;
+            // FIX BUG-04: dialog propriu cu butoane românești.
+            if (!DialogHelper.Confirma(this, "Confirmare",
+                    $"Ești sigur că vrei să {actiunePrezent} contul '{username}'?"))
+                return;
 
             try
             {
-                using (var conn = new SqlConnection(_connStr))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     conn.Open();
                     const string sql = @"
@@ -291,9 +312,9 @@ namespace AppClubCalculatoare
             }
         }
 
-        // ══════════════════════════════════════════════════════════
-        //  SCHIMBA ROL (Admin → User sau invers)
-        // ══════════════════════════════════════════════════════════
+        // ==========================================================
+        //  SCHIMBA ROL (Admin > User sau invers)
+        // ==========================================================
         private void BtnSchimbaRol_Click(object sender, EventArgs e)
         {
             if (dgv.SelectedRows.Count == 0)
@@ -310,21 +331,21 @@ namespace AppClubCalculatoare
             // Nu isi poate schimba propriul rol (ar putea ramane fara admin)
             if (username == SessionInfo.Username)
             {
-                MessageBox.Show("Nu iti poti schimba propriul rol!",
-                    "Operatie nepermisa", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show("Nu îți poți schimba propriul rol!",
+                    "Operație nepermisă", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
 
             string rolNou = rolCurent == "Admin" ? "User" : "Admin";
 
-            if (MessageBox.Show(
-                $"Schimbi rolul utilizatorului '{username}' din '{rolCurent}' in '{rolNou}'?",
-                "Confirmare schimbare rol", MessageBoxButtons.YesNo,
-                MessageBoxIcon.Question) != DialogResult.Yes) return;
+            // FIX BUG-04: dialog propriu cu butoane românești.
+            if (!DialogHelper.Confirma(this, "Confirmare schimbare rol",
+                    $"Schimbi rolul utilizatorului '{username}' din '{rolCurent}' în '{rolNou}'?"))
+                return;
 
             try
             {
-                using (var conn = new SqlConnection(_connStr))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     conn.Open();
                     const string sql = @"
@@ -343,7 +364,6 @@ namespace AppClubCalculatoare
                     $"Admin '{SessionInfo.Username}' a schimbat rolul lui '{username}': {rolCurent} -> {rolNou}");
                 PermissionService.AuditDrepturi("UPDATE",
                     $"Admin '{SessionInfo.Username}' a schimbat rolul lui '{username}': {rolCurent} -> {rolNou}");
-                PermissionService.InvalideazaCache();
                 IncarcaUtilizatori();
             }
             catch (Exception ex)
@@ -354,9 +374,9 @@ namespace AppClubCalculatoare
             }
         }
 
-        // ══════════════════════════════════════════════════════════
+        // ==========================================================
         //  DREPTURI DE ACCES / PERMISIUNI
-        // ══════════════════════════════════════════════════════════
+        // ==========================================================
         private void BtnPermisiuni_Click(object sender, EventArgs e)
         {
             if (dgv.SelectedRows.Count == 0)
@@ -388,9 +408,9 @@ namespace AppClubCalculatoare
         }
     }
 
-    // ════════════════════════════════════════════════════════════════
+    // ================================================================
     //  FORMULAR INTERN: Adauga utilizator nou
-    // ════════════════════════════════════════════════════════════════
+    // ================================================================
     internal class FormAdaugaUtilizator : Form
     {
         private readonly string _connStr;
@@ -401,14 +421,26 @@ namespace AppClubCalculatoare
         public FormAdaugaUtilizator(string connStr)
         {
             _connStr             = connStr;
-            this.Text            = "Adauga utilizator nou";
-            this.Size            = new Size(460, 440);
-            this.MinimumSize     = new Size(460, 440);
+            this.Text            = "Adaugă utilizator nou";
+            // FIX BUG-06: fereastra avea 440px înălțime, dar conținutul cărții
+            // (4 câmpuri × 56px + mesajul de validare la y=240) are nevoie de
+            // ~270px utili. Cardul rămânea cu ~221px, deci rândul „Rol" și
+            // eticheta lblMesaj (y=240..260) ieșeau în afara cardului și NU se
+            // vedeau — de aceea, la „Salvează" cu câmpuri goale, ecranul nu se
+            // schimba deloc (0 pixeli diferiți), deși validarea funcționa.
+            this.Size            = new Size(460, 500);
+            this.MinimumSize     = new Size(460, 500);
             this.StartPosition   = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.FixedDialog;
             this.MaximizeBox     = false;
             this.BackColor       = MaterialTheme.Background;
             this.Font            = MaterialTheme.FontBody;
+
+            // DPI: scalare uniformă (fereastra este DPI-aware) + titlu închis.
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode       = AutoScaleMode.Dpi;
+            WindowChrome.EnableDarkTitleBar(this);
+
             BuildUI();
         }
 
@@ -426,11 +458,11 @@ namespace AppClubCalculatoare
             var bottomBar = MaterialUIHelper.SplitBottomBar(out lb, out rb);
             this.Controls.Add(bottomBar);
 
-            var btnAn = MaterialUIHelper.Button("✕  Anulare", MaterialButtonStyle.Outline, 120);
+            var btnAn = MaterialUIHelper.Button("Anulare", MaterialButtonStyle.Outline, 120);
             btnAn.Click += (s, e) => this.Close();
             rb.Controls.Add(btnAn);
 
-            var btnSalv = MaterialUIHelper.Button("💾  Salvează", MaterialButtonStyle.Success, 140);
+            var btnSalv = MaterialUIHelper.Button("Salvează", MaterialButtonStyle.Success, 140);
             btnSalv.Click += BtnSalveaza_Click;
             rb.Controls.Add(btnSalv);
             this.AcceptButton = btnSalv;
@@ -448,9 +480,9 @@ namespace AppClubCalculatoare
             AdaugaLabelCard(card, "Username: *", y);
             txtUsername = AdaugaTxtCard(card, y, cw); y += 56;
 
-            AdaugaLabelCard(card, "Parola initiala: *", y);
+            AdaugaLabelCard(card, "Parola inițială: *", y);
             txtParola = AdaugaTxtCard(card, y, cw);
-            txtParola.PasswordChar = '●'; y += 56;
+            txtParola.PasswordChar = '?'; y += 56;
 
             AdaugaLabelCard(card, "Nume complet: *", y);
             txtNumeComplet = AdaugaTxtCard(card, y, cw); y += 56;
@@ -464,16 +496,25 @@ namespace AppClubCalculatoare
             cmbRol.Items.AddRange(new object[] { "Admin", "User" });
             cmbRol.SelectedIndex = 1; // User implicit
             cmbRol.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            MaterialUIHelper.StyleInput(cmbRol);
             card.Controls.Add(cmbRol);
             y += 56;
 
-            lblMesaj           = new Label();
-            lblMesaj.Location  = new System.Drawing.Point(20, y);
-            lblMesaj.Size      = new System.Drawing.Size(360, 20);
-            lblMesaj.Font      = MaterialTheme.FontSmall;
-            lblMesaj.BackColor = System.Drawing.Color.Transparent;
-            lblMesaj.Visible   = false;
+            // FIX BUG-06: mesajul de validare e ancorat la baza cardului, astfel
+            // încât să fie vizibil indiferent de înălțimea ferestrei (înainte era
+            // poziționat absolut la y=240 și ieșea din card).
+            lblMesaj = new Label
+            {
+                Dock      = DockStyle.Bottom,
+                Height    = 26,
+                Font      = MaterialTheme.FontSmall,
+                BackColor = System.Drawing.Color.Transparent,
+                Visible   = false,
+                TextAlign = System.Drawing.ContentAlignment.MiddleLeft,
+                Padding   = new Padding(20, 0, 0, 0)
+            };
             card.Controls.Add(lblMesaj);
+            lblMesaj.BringToFront();
         }
 
         private void BtnSalveaza_Click(object sender, EventArgs e)
@@ -482,15 +523,15 @@ namespace AppClubCalculatoare
                 string.IsNullOrWhiteSpace(txtParola.Text)       ||
                 string.IsNullOrWhiteSpace(txtNumeComplet.Text))
             {
-                AfiseazaMesaj("Completeaza toate campurile obligatorii!",
-                    System.Drawing.Color.Red);
+                AfiseazaMesaj("Completează toate câmpurile obligatorii!",
+                    MaterialTheme.Danger);
                 return;
             }
 
             if (txtParola.Text.Length < 6)
             {
-                AfiseazaMesaj("Parola trebuie sa aiba minim 6 caractere!",
-                    System.Drawing.Color.Red);
+                AfiseazaMesaj("Parola trebuie să aibă minim 6 caractere!",
+                    MaterialTheme.Danger);
                 return;
             }
 
@@ -498,7 +539,7 @@ namespace AppClubCalculatoare
             {
                 string hash = AuthService.HashParola(txtParola.Text);
 
-                using (var conn = new SqlConnection(_connStr))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     conn.Open();
                     const string sql = @"
@@ -532,12 +573,12 @@ namespace AppClubCalculatoare
             catch (SqlException ex) when (ex.Number == 2627)
             {
                 AfiseazaMesaj("Username-ul exista deja! Alege altul.",
-                    System.Drawing.Color.Red);
+                    MaterialTheme.Danger);
             }
             catch (Exception ex)
             {
                 AppLogger.Error(ex, "FormAdaugaUtilizator");
-                AfiseazaMesaj("Eroare: " + ex.Message, System.Drawing.Color.Red);
+                AfiseazaMesaj("Eroare: " + ex.Message, MaterialTheme.Danger);
             }
         }
 
@@ -569,8 +610,9 @@ namespace AppClubCalculatoare
             txt.Location  = new System.Drawing.Point(20, y + 20);
             txt.Size      = new System.Drawing.Size(cw, 28);
             txt.Font      = MaterialTheme.FontBody;
+            // Fundalul alb + ForeColor alb (TextPrimary) = text invizibil.
             txt.ForeColor = MaterialTheme.TextPrimary;
-            txt.BackColor = System.Drawing.Color.White;
+            txt.BackColor = MaterialTheme.SurfaceAlt;
             txt.BorderStyle = BorderStyle.FixedSingle;
             txt.MaxLength = 100;
             txt.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
@@ -586,12 +628,12 @@ namespace AppClubCalculatoare
         }
     }
 
-    // ════════════════════════════════════════════════════════════════
+    // ================================================================
     //  FORMULAR INTERN: Drepturi de acces / Permisiuni
     //  Administratorul bifeaza exact ce puncte/functii poate folosi
     //  utilizatorul selectat. Adminii au automat acces la toate —
     //  casutele sunt debifate si dezactivate, cu mentiune explicativa.
-    // ════════════════════════════════════════════════════════════════
+    // ================================================================
     internal class FormPermisiuni : Form
     {
         private readonly string _connStr;
@@ -609,7 +651,7 @@ namespace AppClubCalculatoare
             _username      = username;
             _rol           = rol;
 
-            this.Text            = $"Drepturi de acces / Permisiuni — {username}";
+            this.Text            = $"Drepturi de acces / Permisiuni · {username}";
             this.Size            = new Size(540, 700);
             this.MinimumSize     = new Size(540, 600);
             this.StartPosition   = FormStartPosition.CenterParent;
@@ -617,8 +659,14 @@ namespace AppClubCalculatoare
             this.MaximizeBox     = false;
             this.BackColor       = MaterialTheme.Background;
             this.Font            = MaterialTheme.FontBody;
+
+            // DPI: scalare uniformă (fereastra este DPI-aware) + titlu închis.
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode       = AutoScaleMode.Dpi;
+            WindowChrome.EnableDarkTitleBar(this);
+
             BuildUI();
-            IncarcaPermisiuni();
+            this.Load += async (s, e) => await IncarcaPermisiuniAsync();
         }
 
         private void BuildUI()
@@ -635,11 +683,11 @@ namespace AppClubCalculatoare
             var bottomBar = MaterialUIHelper.SplitBottomBar(out lb, out rb);
             this.Controls.Add(bottomBar);
 
-            var btnAnulare = MaterialUIHelper.Button("✕  Anulare", MaterialButtonStyle.Outline, 130);
+            var btnAnulare = MaterialUIHelper.Button("Anulare", MaterialButtonStyle.Outline, 130);
             btnAnulare.Click += (s, e) => this.Close();
             rb.Controls.Add(btnAnulare);
 
-            var btnSalveaza = MaterialUIHelper.Button("💾  Salvează drepturile", MaterialButtonStyle.Success, 190);
+            var btnSalveaza = MaterialUIHelper.Button("Salvează drepturile", MaterialButtonStyle.Success, 190);
             btnSalveaza.Enabled = _rol != "Admin";
             btnSalveaza.Click += BtnSalveaza_Click;
             rb.Controls.Add(btnSalveaza);
@@ -648,7 +696,7 @@ namespace AppClubCalculatoare
 
             // Header sus (ultimul)
             var header = MaterialUIHelper.Header(
-                "Permisiuni — " + _username, "Rol: " + _rol,
+                "Permisiuni · " + _username, "Rol: " + _rol,
                 null, MaterialTheme.Primary);
             this.Controls.Add(header);
 
@@ -665,14 +713,17 @@ namespace AppClubCalculatoare
             };
             card.Controls.Add(lblInfo);
 
-            // ── Panou derulant: grupuri Vizualizare / Modificare / Stergere ──
+            // -- Panou derulant: grupuri Vizualizare / Modificare / Stergere --
             var panouCasute = new Panel
             {
                 Location    = new System.Drawing.Point(16, 38),
                 Size        = new System.Drawing.Size(440, 400),
                 Anchor      = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
                 AutoScroll  = true,
-                BackColor   = Color.White,
+                // Fundal alb + casute cu ForeColor alb (TextPrimary) => etichetele
+                // drepturilor erau complet invizibile. Suprafata petrol pastreaza
+                // lizibilitatea si e aliniata cu restul dialogului.
+                BackColor   = MaterialTheme.SurfaceAlt,
                 BorderStyle = BorderStyle.FixedSingle
             };
             card.Controls.Add(panouCasute);
@@ -690,7 +741,10 @@ namespace AppClubCalculatoare
                     {
                         Text      = grup + ":",
                         Font      = MaterialTheme.FontLabel,
-                        ForeColor = MaterialTheme.Primary,
+                        // Albastrul principal (#2563EB) are doar ~3.3:1 pe
+                        // suprafata petrol — prea putin pentru text mic.
+                        // Varianta luminoasa (PrimaryLight) ajunge la ~6.5:1.
+                        ForeColor = MaterialTheme.PrimaryLight,
                         BackColor = System.Drawing.Color.Transparent,
                         Location  = new System.Drawing.Point(10, y),
                         AutoSize  = true
@@ -724,8 +778,8 @@ namespace AppClubCalculatoare
             return "Vizualizare";
         }
 
-        /// <summary>Încarcă drepturile curente din UtilizatoriPermisiuni.</summary>
-        private void IncarcaPermisiuni()
+        /// <summary>Incarca drepturile curente din UtilizatoriPermisiuni.</summary>
+        private async Task IncarcaPermisiuniAsync()
         {
             try
             {
@@ -734,78 +788,84 @@ namespace AppClubCalculatoare
                     FROM   UtilizatoriPermisiuni
                     WHERE  id_utilizator = @id";
 
-                using (var conn = new SqlConnection(_connStr))
-                using (var cmd = new SqlCommand(sql, conn))
+                var coduri = await SqlDb.QueryAsync(
+                    sql,
+                    reader => reader.GetString(0),
+                    p => p.Add("@id", SqlDbType.Int).Value = _idUtilizator).ConfigureAwait(true);
+
+                if (IsDisposed) return;
+
+                foreach (string cod in coduri)
                 {
-                    cmd.Parameters.Add("@id", SqlDbType.Int).Value = _idUtilizator;
-                    conn.Open();
-                    using (var reader = cmd.ExecuteReader())
-                        while (reader.Read())
-                        {
-                            string cod = reader.GetString(0);
-                            foreach (var chk in _casute)
-                                if ((string)chk.Tag == cod) chk.Checked = true;
-                        }
+                    foreach (var chk in _casute)
+                        if ((string)chk.Tag == cod) chk.Checked = true;
                 }
             }
             catch (Exception ex)
             {
                 AppLogger.Error(ex, "FormPermisiuni.IncarcaPermisiuni");
-                MessageBox.Show("Eroare la incarcarea drepturilor: " + ex.Message,
-                    "Eroare", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                if (!IsDisposed)
+                {
+                    MessageBox.Show("Eroare la incarcarea drepturilor: " + ex.Message,
+                        "Eroare", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
         }
 
         /// <summary>Rescrie complet drepturile utilizatorului (delete + insert).</summary>
-        private void BtnSalveaza_Click(object sender, EventArgs e)
+        private async void BtnSalveaza_Click(object sender, EventArgs e)
         {
             try
             {
-                using (var conn = new SqlConnection(_connStr))
+                var acordate = new List<string>();
+                foreach (var chk in _casute)
+                    if (chk.Checked) acordate.Add((string)chk.Tag);
+
+                // DELETE + un singur INSERT multi-row, in aceeasi tranzactie:
+                // 2 round trip-uri in loc de 1 + N.
+                await SqlDb.InTransactionAsync(async (conn, tranz, ct) =>
                 {
-                    conn.Open();
-                    using (var tranz = conn.BeginTransaction())
+                    using (var cmd = new SqlCommand(
+                        "DELETE FROM UtilizatoriPermisiuni WHERE id_utilizator = @id",
+                        conn, tranz))
                     {
-                        // 1. Sterge drepturile vechi
-                        using (var cmd = new SqlCommand(
-                            "DELETE FROM UtilizatoriPermisiuni WHERE id_utilizator = @id",
-                            conn, tranz))
-                        {
-                            cmd.Parameters.Add("@id", SqlDbType.Int).Value = _idUtilizator;
-                            cmd.ExecuteNonQuery();
-                        }
-
-                        // 2. Insereaza doar casutele bifate
-                        foreach (var chk in _casute)
-                        {
-                            if (!chk.Checked) continue;
-
-                            using (var cmd = new SqlCommand(@"
-                                INSERT INTO UtilizatoriPermisiuni
-                                    (id_utilizator, cod_permisiune, acordata_de)
-                                VALUES (@id, @cod, @admin)", conn, tranz))
-                            {
-                                cmd.Parameters.Add("@id",   SqlDbType.Int).Value        = _idUtilizator;
-                                cmd.Parameters.Add("@cod",  SqlDbType.NVarChar, 50).Value = (string)chk.Tag;
-                                cmd.Parameters.Add("@admin",SqlDbType.NVarChar, 50).Value = SessionInfo.Username;
-                                cmd.ExecuteNonQuery();
-                            }
-                        }
-
-                        tranz.Commit();
+                        cmd.CommandTimeout = SqlDb.DefaultTimeoutSeconds;
+                        cmd.Parameters.Add("@id", SqlDbType.Int).Value = _idUtilizator;
+                        await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
                     }
-                }
+
+                    if (acordate.Count == 0) return;
+
+                    var sb = new StringBuilder(@"
+                        INSERT INTO UtilizatoriPermisiuni
+                            (id_utilizator, cod_permisiune, acordata_de)
+                        VALUES ");
+                    using (var cmd = new SqlCommand { Connection = conn, Transaction = tranz,
+                                                      CommandTimeout = SqlDb.DefaultTimeoutSeconds })
+                    {
+                        cmd.Parameters.Add("@id", SqlDbType.Int).Value = _idUtilizator;
+                        cmd.Parameters.Add("@admin", SqlDbType.NVarChar, 50).Value = SessionInfo.Username;
+
+                        for (int i = 0; i < acordate.Count; i++)
+                        {
+                            if (i > 0) sb.Append(", ");
+                            sb.Append($"(@id, @cod{i}, @admin)");
+                            cmd.Parameters.Add("@cod" + i, SqlDbType.NVarChar, 50).Value = acordate[i];
+                        }
+
+                        cmd.CommandText = sb.ToString();
+                        await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                    }
+                }).ConfigureAwait(true);
+
+                if (IsDisposed) return;
 
                 // Daca utilizatorul modificat este cel logat chiar acum,
                 // reimprospatam si sesiunea lui (permisiunile noi intra in vigore).
                 if (_username == SessionInfo.Username)
-                    PermissionService.IncarcaPermisiuni(_username, false);
-                PermissionService.InvalideazaCache();
+                    await PermissionService.IncarcaPermisiuniAsync(_username, false);
 
-                // ── Audit dedicat drepturilor (istoric complet) ──────────
-                var acordate = new List<string>();
-                foreach (var chk in _casute)
-                    if (chk.Checked) acordate.Add((string)chk.Tag);
+                // -- Audit dedicat drepturilor (istoric complet) ----------
                 PermissionService.AuditDrepturi("UPDATE",
                     $"Admin '{SessionInfo.Username}' a actualizat permisiunile lui " +
                     $"'{_username}': [{string.Join(", ", acordate)}]");
@@ -823,7 +883,7 @@ namespace AppClubCalculatoare
         }
     }
 
-    // FIX_17: dialog custom pentru resetarea parolei — maschează caracterele (PasswordChar='●') + cere confirmare.
+    // FIX_17: dialog custom pentru resetarea parolei — mascheaza caracterele (PasswordChar='?') + cere confirmare.
     internal class FormResetareParola : Form
     {
         public string ParolaNoua { get; private set; } = "";
@@ -834,8 +894,8 @@ namespace AppClubCalculatoare
 
         public FormResetareParola(string username)
         {
-            this.Text = "Resetare parolă — " + username;
-            // FIX_17b: înălțime mărită (320→400) — cardul Dock.Fill era prea scund și tăia al doilea câmp (vezi screenshot).
+            this.Text = "Resetare parolă · " + username;
+            // FIX_17b: inal?ime marita (320>400) — cardul Dock.Fill era prea scund ?i taia al doilea camp (vezi screenshot).
             this.Size = new Size(440, 400);
             this.MinimumSize = new Size(440, 400);
             this.StartPosition = FormStartPosition.CenterParent;
@@ -843,6 +903,11 @@ namespace AppClubCalculatoare
             this.MaximizeBox = false;
             this.BackColor = MaterialTheme.Background;
             this.Font = MaterialTheme.FontBody;
+
+            // DPI: scalare uniformă (fereastra este DPI-aware) + titlu închis.
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode = AutoScaleMode.Dpi;
+            WindowChrome.EnableDarkTitleBar(this);
 
             var content = MaterialUIHelper.ContentPanel();
             this.Controls.Add(content);
@@ -853,10 +918,10 @@ namespace AppClubCalculatoare
             var bottomBar = MaterialUIHelper.SplitBottomBar(out lb, out rb);
             this.Controls.Add(bottomBar);
 
-            var btnAn = MaterialUIHelper.Button("✕  Anulare", MaterialButtonStyle.Outline, 120);
+            var btnAn = MaterialUIHelper.Button("Anulare", MaterialButtonStyle.Outline, 120);
             btnAn.Click += (s, e) => { this.DialogResult = DialogResult.Cancel; this.Close(); };
             rb.Controls.Add(btnAn);
-            var btnOk = MaterialUIHelper.Button("💾  Resetează", MaterialButtonStyle.Success, 140);
+            var btnOk = MaterialUIHelper.Button("Resetează", MaterialButtonStyle.Success, 140);
             btnOk.Click += (s, e) =>
             {
                 if (string.IsNullOrWhiteSpace(_txtParola.Text) || string.IsNullOrWhiteSpace(_txtConfirm.Text))
@@ -879,19 +944,19 @@ namespace AppClubCalculatoare
             this.AcceptButton = btnOk;
             this.CancelButton = btnAn;
 
-            var header = MaterialUIHelper.Header("Resetare parolă", "Cont: " + username, null, MaterialTheme.Primary);
+            var header = MaterialUIHelper.Header("Resetare parola", "Cont: " + username, null, MaterialTheme.Primary);
             this.Controls.Add(header);
 
             int y = 14;
             TextBox t1;
-            MaterialUIHelper.LabeledTextBox("Parolă nouă (minim 6 caractere)", card, ref y, 20, 320, false, out t1);
+            MaterialUIHelper.LabeledTextBox("Parola noua (minim 6 caractere)", card, ref y, 20, 320, false, out t1);
             _txtParola = t1;
-            _txtParola.PasswordChar = '●';
+            _txtParola.PasswordChar = '?';
             _txtParola.MaxLength = 100;
             TextBox t2;
-            MaterialUIHelper.LabeledTextBox("Confirmă parola nouă", card, ref y, 20, 320, false, out t2);
+            MaterialUIHelper.LabeledTextBox("Confirma parola noua", card, ref y, 20, 320, false, out t2);
             _txtConfirm = t2;
-            _txtConfirm.PasswordChar = '●';
+            _txtConfirm.PasswordChar = '?';
             _txtConfirm.MaxLength = 100;
 
             _lblMesaj = new Label

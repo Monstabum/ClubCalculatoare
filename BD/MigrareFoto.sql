@@ -86,6 +86,7 @@ IF OBJECT_ID('EchipamentFoto', 'U') IS NOT NULL
                    WHERE object_id = OBJECT_ID('EchipamentFoto')
                      AND name = 'UX_Foto_Principala')
 BEGIN
+    SET QUOTED_IDENTIFIER ON;
     CREATE UNIQUE INDEX UX_Foto_Principala ON EchipamentFoto(id_echipament)
         WHERE este_principala = 1;
     PRINT 'Indexul UX_Foto_Principala a fost creat.';

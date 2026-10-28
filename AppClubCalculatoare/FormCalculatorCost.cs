@@ -42,13 +42,31 @@ namespace AppClubCalculatoare
         public FormCalculatorCost()
         {
             this.Text            = "Calculator Cost Sesiune";
-            this.Size            = new Size(860, 700);
-            this.MinimumSize     = new Size(740, 600);
+            // FIX (bug vizual): cardul „PARAMETRI SESIUNE" avea 489px înălțime,
+            // dar conținutul lui (4 câmpuri + combo + 5 rânduri de rezultate)
+            // ocupa 607px. Efectul: „Reducere membru:" era tăiat la jumătate, iar
+            // „Total de plată:" și „Cost mediu / sesiune:" (cu valorile lor) ieșeau
+            // complet în afara cardului — adică exact totalul, informația cea mai
+            // importantă, nu putea fi citită.
+            //
+            // S-au luat două măsuri: (1) rândurile de rezultat au trecut de pe două
+            // linii (etichetă deasupra valorii, 46px/rând) pe o singură linie cu
+            // valoarea aliniată la dreapta (28px/rând) — economie de 90px;
+            // (2) spațierea verticală a câmpurilor a fost strânsă ușor.
+            // Înălțimea minimă garantează că tot conținutul rămâne vizibil.
+            this.Size            = new Size(860, 740);
+            this.MinimumSize     = new Size(740, 740);
             this.StartPosition   = FormStartPosition.CenterParent;
             this.FormBorderStyle = FormBorderStyle.Sizable;
             this.MaximizeBox     = true;
             this.BackColor       = MaterialTheme.Background;
             this.Font            = MaterialTheme.FontBody;
+
+            // DPI: scalare uniformă (fereastra este DPI-aware) + titlu închis.
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode       = AutoScaleMode.Dpi;
+            WindowChrome.EnableDarkTitleBar(this);
+
             BuildUI();
         }
 
@@ -112,7 +130,9 @@ namespace AppClubCalculatoare
             AdaugaEtichetaSectiune(cardParams, "PARAMETRI SESIUNE", ref y);
             y += 8;
 
-            txtTarif = AdaugaCampNumeric(cardParams, "Tarif orar (lei/oră)", ref y);
+            // FIX BUG-07: unitatea de monedă era „lei", în timp ce restul
+            // aplicației (dashboard, FormEditare) folosește EUR. Unificat pe EUR.
+            txtTarif = AdaugaCampNumeric(cardParams, "Tarif orar (EUR/oră)", ref y);
             txtTarif.Text = "25";
 
             txtDurata = AdaugaCampNumeric(cardParams, "Durată sesiune (minute)", ref y);
@@ -123,18 +143,37 @@ namespace AppClubCalculatoare
 
             cmbPachet = AdaugaComboPachet(cardParams, "Pachet", ref y);
 
+            // FIX: txtReducere era folosit mai jos ÎNAINTE de a fi creat, deci
+            // apelul StyleInput(txtReducere) primea null (ignorat de guard-ul din
+            // StyleInput) și câmpul „Reducere membru (%)" rămânea nestilizat,
+            // cu aspect diferit față de celelalte câmpuri. Stilizăm după creare.
             txtReducere = AdaugaCampNumeric(cardParams, "Reducere membru (%)", ref y);
             txtReducere.Text = "0";
+
+            MaterialUIHelper.StyleInput(txtTarif);
+            MaterialUIHelper.StyleInput(txtDurata);
+            MaterialUIHelper.StyleInput(txtSesiuni);
+            MaterialUIHelper.StyleInput(txtReducere);
 
             y += 10;
             AdaugaEtichetaSectiune(cardParams, "REZULTATE", ref y);
             y += 8;
 
-            lblCostBrut       = AdaugaRandRezultat(cardParams, "Cost brut:", ref y);
-            lblDiscountPachet = AdaugaRandRezultat(cardParams, "Discount pachet:", ref y);
-            lblReducereMembru = AdaugaRandRezultat(cardParams, "Reducere membru:", ref y);
-            lblTotal          = AdaugaRandRezultat(cardParams, "Total de plată:", ref y);
-            lblCostMediu      = AdaugaRandRezultat(cardParams, "Cost mediu / sesiune:", ref y);
+            // FIX (bug vizual): rezultatele sunt acum pe o singură linie
+            // (etichetă în stânga, valoare aliniată la dreapta) într-un
+            // TableLayoutPanel. Înainte eticheta și valoarea erau pe două linii
+            // (46px/rând × 5 = 230px), ceea ce depășea înălțimea cardului și
+            // ascundea ultimele două rezultate.
+            var tblRezultate = CreeazaTabelRezultate(cardParams, 16, y,
+                NrRanduriRezultat, LatimeTabelRezultate);
+
+            lblCostBrut       = AdaugaRandRezultat(tblRezultate, "Cost brut:");
+            lblDiscountPachet = AdaugaRandRezultat(tblRezultate, "Discount pachet:");
+            lblReducereMembru = AdaugaRandRezultat(tblRezultate, "Reducere membru:");
+            lblTotal          = AdaugaRandRezultat(tblRezultate, "Total de plată:");
+            lblCostMediu      = AdaugaRandRezultat(tblRezultate, "Cost mediu / sesiune:");
+
+            y += NrRanduriRezultat * InaltimeRandRezultat;
 
             // ═══ COLOANA DREAPTĂ: tabel comparativ ═════════════════
             var panelTabel = new Panel
@@ -174,22 +213,14 @@ namespace AppClubCalculatoare
                 Font = MaterialTheme.FontSmall,
                 EnableHeadersVisualStyles = false
             };
-            dgvComparativ.ColumnHeadersDefaultCellStyle.BackColor = MaterialTheme.Info;
-            dgvComparativ.ColumnHeadersDefaultCellStyle.ForeColor = Color.White;
-            dgvComparativ.ColumnHeadersDefaultCellStyle.Font = MaterialTheme.FontLabel;
-            dgvComparativ.ColumnHeadersDefaultCellStyle.SelectionBackColor = MaterialTheme.Info;
-            // Tema închisă: selecție violetă cu text deschis (lizibil), rânduri
-            // alternate închise cu text deschis, grid linie discretă.
-            dgvComparativ.GridColor = MaterialTheme.Divider;
-            dgvComparativ.DefaultCellStyle.BackColor = MaterialTheme.Surface;
-            dgvComparativ.DefaultCellStyle.ForeColor = MaterialTheme.TextPrimary;
-            dgvComparativ.DefaultCellStyle.SelectionBackColor = Color.FromArgb(0x3B, 0x2A, 0x6B); // violet selection
-            dgvComparativ.DefaultCellStyle.SelectionForeColor = MaterialTheme.TextPrimary;
-            dgvComparativ.DefaultCellStyle.Padding = new Padding(6, 0, 6, 0);
-            dgvComparativ.AlternatingRowsDefaultCellStyle.BackColor = MaterialTheme.Background;
-            dgvComparativ.AlternatingRowsDefaultCellStyle.ForeColor = MaterialTheme.TextPrimary;
-            dgvComparativ.AlternatingRowsDefaultCellStyle.SelectionBackColor = Color.FromArgb(0x3B, 0x2A, 0x6B);
-            dgvComparativ.AlternatingRowsDefaultCellStyle.SelectionForeColor = MaterialTheme.TextPrimary;
+            // Stilul unic de tabel: antet discret, rânduri alternate,
+            // selecție cyan translucidă — fără chenar exterior.
+            MaterialUIHelper.StyleGrid(dgvComparativ, Design.Accent);
+            dgvComparativ.ReadOnly = true;
+            dgvComparativ.AllowUserToAddRows = false;
+            dgvComparativ.AllowUserToDeleteRows = false;
+            dgvComparativ.ColumnHeadersHeight = 34;
+            dgvComparativ.RowTemplate.Height = 26;
             panelTabel.Controls.Add(dgvComparativ);
             dgvComparativ.BringToFront();
         }
@@ -263,6 +294,19 @@ namespace AppClubCalculatoare
         }
 
         // ── Helpers UI ─────────────────────────────────────────────
+
+        /// <summary>Înălțimea unui rând de rezultat (etichetă + valoare pe aceeași linie).</summary>
+        private const int InaltimeRandRezultat = 28;
+        private const int NrRanduriRezultat    = 5;
+        /// <summary>Lățimea blocului de rezultate: cardul are 314px, cu 16px margini.</summary>
+        private const int LatimeTabelRezultate = 282;
+
+        /// <summary>
+        /// Spațierea verticală strânsă a câmpurilor: LabeledTextBox avansează y cu 60,
+        /// dar cardul nu are loc pentru atâta aer — reducem la 56.
+        /// </summary>
+        private const int PasCampNumeric = 56;
+
         private void AdaugaEtichetaSectiune(Control parent, string text, ref int y)
         {
             var lbl = new Label
@@ -275,13 +319,16 @@ namespace AppClubCalculatoare
                 AutoSize = true
             };
             parent.Controls.Add(lbl);
-            y += 24;
+            y += 22;
         }
 
         private TextBox AdaugaCampNumeric(Control parent, string label, ref int y)
         {
+            int start = y;
             TextBox txt;
             MaterialUIHelper.LabeledTextBox(label, parent, ref y, 16, 270, false, out txt);
+            // Spațiere mai strânsă decât cea implicită (60px), ca tot cardul să încapă.
+            y = start + PasCampNumeric;
             return txt;
         }
 
@@ -297,7 +344,7 @@ namespace AppClubCalculatoare
                 AutoSize = true
             };
             parent.Controls.Add(lbl);
-            y += 20;
+            y += 18;
 
             var cmb = new ComboBox
             {
@@ -308,35 +355,71 @@ namespace AppClubCalculatoare
             };
             cmb.Items.AddRange(NumePachete);
             cmb.SelectedIndex = 0;
+            MaterialUIHelper.StyleInput(cmb);
             parent.Controls.Add(cmb);
-            y += 36;
+            y += 34;
             return cmb;
         }
 
-        private Label AdaugaRandRezultat(Control parent, string label, ref int y)
+        /// <summary>
+        /// Creează tabelul cu rezultate: coloana 1 = etichete (AutoSize),
+        /// coloana 2 = valori aliniate la dreapta (umple restul lățimii).
+        /// </summary>
+        private TableLayoutPanel CreeazaTabelRezultate(Control parent, int x, int y,
+            int nrRanduri, int latime)
         {
+            var tbl = new TableLayoutPanel
+            {
+                Location    = new Point(x, y),
+                Size        = new Size(latime, nrRanduri * InaltimeRandRezultat),
+                ColumnCount = 2,
+                RowCount    = 0,
+                BackColor   = Color.Transparent,
+                Margin      = new Padding(0),
+                Padding     = new Padding(0)
+            };
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+            tbl.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+            parent.Controls.Add(tbl);
+            return tbl;
+        }
+
+        /// <summary>
+        /// Adaugă un rând de rezultat: eticheta în stânga, valoarea aliniată la
+        /// dreapta pe ACEEAȘI linie. Întoarce eticheta-valoare (pentru actualizare).
+        /// </summary>
+        private Label AdaugaRandRezultat(TableLayoutPanel tbl, string label)
+        {
+            int r = tbl.RowCount;
+            tbl.RowCount = r + 1;
+            tbl.RowStyles.Add(new RowStyle(SizeType.Absolute, InaltimeRandRezultat));
+
             var lbl = new Label
             {
-                Text = label,
-                Font = MaterialTheme.FontBody,
+                Text      = label,
+                Font      = MaterialTheme.FontBody,
                 ForeColor = MaterialTheme.TextSecondary,
                 BackColor = Color.Transparent,
-                Location = new Point(16, y),
-                AutoSize = true
+                AutoSize  = true,
+                Anchor    = AnchorStyles.Left,
+                TextAlign = ContentAlignment.MiddleLeft,
+                Margin    = new Padding(0)
             };
-            parent.Controls.Add(lbl);
 
             var val = new Label
             {
-                Text = "—",
-                Font = MaterialTheme.FontSubtitle,
+                Text      = "—",
+                Font      = MaterialTheme.FontSubtitle,
                 ForeColor = MaterialTheme.TextPrimary,
                 BackColor = Color.Transparent,
-                Location = new Point(16, y + 20),
-                AutoSize = true
+                AutoSize  = false,
+                Dock      = DockStyle.Fill,
+                TextAlign = ContentAlignment.MiddleRight,
+                Margin    = new Padding(6, 0, 0, 0)
             };
-            parent.Controls.Add(val);
-            y += 46;
+
+            tbl.Controls.Add(lbl, 0, r);
+            tbl.Controls.Add(val, 1, r);
             return val;
         }
 
@@ -377,7 +460,7 @@ namespace AppClubCalculatoare
 
         private static string FormateazaLei(double valoare)
         {
-            return valoare.ToString("N2", CultureInfo.CurrentCulture) + " lei";
+            return valoare.ToString("N2", CultureInfo.CurrentCulture) + " EUR";
         }
     }
 }

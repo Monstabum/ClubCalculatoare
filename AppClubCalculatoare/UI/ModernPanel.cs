@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
@@ -6,15 +7,24 @@ using System.Windows.Forms;
 namespace AppClubCalculatoare.UI
 {
     /// <summary>
-    /// Panel cu colțuri rotunjite, border subtil și opțional un titlu.
-    /// Folosit pentru cardurile din dashboard și rapoarte.
+    /// Panel plat cu colțuri rotunjite și contur subtil: suprafață
+    /// <see cref="Design.Surface"/> + 1px <see cref="Design.Border"/>.
+    /// Fără gradient, fără umbră.
     /// </summary>
     internal class ModernPanel : Panel
     {
-        public int CornerRadius { get; set; } = Theme.Radius;
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public int CornerRadius { get; set; } = Design.Radius;
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool ShowBorder { get; set; } = true;
-        public Color BorderColor { get; set; } = Theme.Border;
-        public Color SurfaceColor { get; set; } = Theme.Surface;
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public Color BorderColor { get; set; } = Design.Border;
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public Color SurfaceColor { get; set; } = Design.Surface;
 
         public ModernPanel()
         {
@@ -22,37 +32,25 @@ namespace AppClubCalculatoare.UI
                      ControlStyles.UserPaint |
                      ControlStyles.OptimizedDoubleBuffer |
                      ControlStyles.ResizeRedraw, true);
+            DoubleBuffered = true;
             BackColor = SurfaceColor;
-        }
-
-        protected override void OnResize(EventArgs e)
-        {
-            base.OnResize(e);
-            Theme.Rounded(this, CornerRadius);
-        }
-        protected override void OnHandleCreated(EventArgs e)
-        {
-            base.OnHandleCreated(e);
-            Theme.Rounded(this, CornerRadius);
         }
 
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.Clear(Parent?.BackColor ?? Theme.Background);
+            g.Clear(Design.ResolveOpaqueBackground(this, Design.Bg));
 
-            var rect = new Rectangle(0, 0, Width - 1, Height - 1);
-            using (var path = MaterialTheme.RoundedPath(rect, CornerRadius))
+            var rect = new Rectangle(0, 0, Math.Max(2, Width - 1), Math.Max(2, Height - 1));
+            using (var path = Design.RoundedPath(rect, CornerRadius))
             {
                 using (var brush = new SolidBrush(SurfaceColor))
                     g.FillPath(brush, path);
 
                 if (ShowBorder)
-                {
                     using (var pen = new Pen(BorderColor, 1f))
                         g.DrawPath(pen, path);
-                }
             }
         }
     }

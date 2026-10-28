@@ -1,318 +1,147 @@
 @echo off
-
 rem ============================================================
-
-rem  AppClubCalculatoare - Instalare baza de date intr-un singur pas
-
+rem  AppClubCalculatoare - pregatire baza de date (dublu-click)
 rem ------------------------------------------------------------
-
-rem  Folosire interactiva (dublu-click din folderul BD):
-
-rem      Instaleaza_BD.bat
-
-rem  Folosire din cmd (server si mod optional):
-
-rem      Instaleaza_BD.bat [server] [NOU | UPDATE]
-
-rem  Exemple:
-
-rem      Instaleaza_BD.bat
-
-rem      Instaleaza_BD.bat .\SQLEXPRESS NOU
-
-rem      Instaleaza_BD.bat . UPDATE
-
+rem  Ruleaza singur, fara intrebari:
+rem    - baza lipseste  -> INSTALARE completa (Instalare.sql)
+rem    - baza exista    -> ACTUALIZARE sigura, datele se pastreaza
 rem
-
-rem  Moduri:
-
-rem    NOU     = instalare noua prin Instalare.sql, toate cele
-
-rem              7 scripturi. ATENTIE: reseteaza datele demo!
-
-rem    UPDATE  = actualizare sigura a unei baze existente, doar
-
-rem              pasii 2-7, idempotenti: AuditLog, Autentificare,
-
-rem              Permisiuni, MigrareFoto, Favorite, CalculatorCost.
-
-rem              Pastreaza datele si pozele.
-
+rem  Server implicit: .\SQLEXPRESS (ca in App.config).
+rem  Optional, din cmd:
+rem    Instaleaza_BD.bat NOU          reinstalare completa
+rem    Instaleaza_BD.bat SERVER       alt server
+rem    Instaleaza_BD.bat SERVER NOU   alt server + reinstalare
 rem
-
-rem  Fisier ASCII intentionat, fara diacritice, pentru afisare
-
-rem  corecta pe orice codepage de consola. Flux pe goto, fara
-
-rem  blocuri if imbricate.
-
+rem  Log tehnic complet: bd_log.txt, langa acest fisier.
+rem  Fisier ASCII intentionat (fara diacritice).
 rem ============================================================
 
 setlocal
-
 pushd "%~dp0"
 
-
-
 set SERVER=.\SQLEXPRESS
+set MOD=AUTO
+if /I "%~1"=="NOU" set MOD=NOU
+if /I "%~1"=="REINSTALARE" set MOD=NOU
+if not "%~1"=="" if /I not "%~1"=="NOU" if /I not "%~1"=="REINSTALARE" set SERVER=%~1
+if /I "%~2"=="NOU" set MOD=NOU
 
-if not "%~1"=="" set SERVER=%~1
-
-set MOD=%~2
-
-if "%MOD%"=="" goto PromptServer
-
-if /I "%MOD%"=="NOU" goto CheckSqlcmd
-
-if /I "%MOD%"=="UPDATE" goto CheckSqlcmd
-
-echo Mod necunoscut: %MOD% - folositi NOU sau UPDATE.
-
-goto SfarsitEroare
-
-
-
-:PromptServer
-
+echo ============================================================
+echo  AppClubCalculatoare - pregatire baza de date
+echo ============================================================
+echo  Server: %SERVER%
 echo.
-
-echo Server curent: %SERVER%
-
-set /p SERVER="Alt server - Enter pastreaza: "
-
-set SERVER=%SERVER: =%
-
-if "%SERVER%"=="" set SERVER=.\SQLEXPRESS
-
-
-
-:CheckSqlcmd
 
 where sqlcmd >nul 2>nul
-
 if errorlevel 1 goto FaraSqlcmd
 
-
-
-echo.
-
-echo Test conexiune la %SERVER% ...
-
+echo  Test conexiune ...
 sqlcmd -S %SERVER% -Q "SELECT 1" -b >nul 2>nul <nul
-
 if errorlevel 1 goto EroareConectare
-
-echo Conectat.
-
-
+echo  Conectat.
+echo.
 
 set EXISTA=0
-
 sqlcmd -S %SERVER% -d ClubCalculatoare -Q "SELECT 1" -b >nul 2>nul <nul
-
 if not errorlevel 1 set EXISTA=1
 
+> "bd_log.txt" echo === AppClubCalculatoare - rulare %DATE% %TIME% ===
 
-
-if not "%MOD%"=="" goto ModAles
-
-if "%EXISTA%"=="1" goto MeniuMod
-
-echo Baza ClubCalculatoare nu exista - se face instalare NOUA.
-
-set MOD=NOU
-
-goto ModAles
-
-
-
-:MeniuMod
-
-echo.
-
-echo Baza ClubCalculatoare EXISTA deja pe %SERVER%.
-
-echo [R] REINSTALARE completa - reseteaza datele demo!
-
-echo [A] ACTUALIZARE sigura - pasii 2-7, pastreaza datele.
-
-set ALEGERE=A
-
-set /p ALEGERE="Alegeti R/A - Enter este A: "
-
-set ALEGERE=%ALEGERE: =%
-
-if /I "%ALEGERE%"=="R" set MOD=NOU
-
-if /I not "%ALEGERE%"=="R" set MOD=UPDATE
-
-
-
-:ModAles
-
-if /I "%MOD%"=="NOU" goto ModNou
-
-goto ModUpdate
-
-
+if "%MOD%"=="NOU" goto ModNou
+if "%EXISTA%"=="1" goto ExecUpdate
+goto ExecNou
 
 :ModNou
-
-if "%EXISTA%"=="0" goto ExecNou
-
-echo.
-
-echo ATENTIE: reinstalarea sterge si re-creeaza tabelele cu
-
-echo date demo - istoricul si pozele existente se pierd!
-
-set CONFIRM=NU
-
-set /p CONFIRM="Scrieti DA pentru confirmare: "
-
-set CONFIRM=%CONFIRM: =%
-
-if /I "%CONFIRM%"=="DA" goto ExecNou
-
-echo Operatie anulata.
-
-goto SfarsitOk
-
-
+if "%EXISTA%"=="1" echo  ATENTIE: mod NOU - datele demo existente se reseteaza.
+goto ExecNou
 
 :ExecNou
-
+echo  INSTALARE COMPLETA (pasii 1-10). Poate dura pana la un minut ...
 echo.
-
-echo === Instalare NOUA 1-7: Instalare.sql ===
-
-sqlcmd -S %SERVER% -f 65001 -b -i Instalare.sql <nul
-
+echo --- Instalare.sql >> "bd_log.txt"
+sqlcmd -S %SERVER% -f 65001 -b -i Instalare.sql >> "bd_log.txt" 2>&1 <nul
 if errorlevel 1 goto EroareInstalare
-
 goto Verificare
 
-
-
-:ModUpdate
-
+:ExecUpdate
+echo  ACTUALIZARE SIGURA (pasii 2-10). Datele se pastreaza.
 echo.
-
-echo === Actualizare sigura 2-7 ===
-
+set NR_EROARE=0
 call :RuleazaScript AuditLog.sql
-
-if errorlevel 1 goto SfarsitEroare
-
 call :RuleazaScript Autentificare_Update.sql
-
-if errorlevel 1 goto SfarsitEroare
-
 call :RuleazaScript Permisiuni.sql
-
-if errorlevel 1 goto SfarsitEroare
-
 call :RuleazaScript MigrareFoto.sql
-
-if errorlevel 1 goto SfarsitEroare
-
 call :RuleazaScript Favorite.sql
-
-if errorlevel 1 goto SfarsitEroare
-
 call :RuleazaScript CalculatorCost.sql
-
-if errorlevel 1 goto SfarsitEroare
-
+call :RuleazaScript Adauga_DurataMinute.sql
+call :RuleazaScript 10_Performance_Indexes.sql
+call :RuleazaScript 20_usp_Dashboard.sql
+if not "%NR_EROARE%"=="0" goto EroareUpdate
 goto Verificare
-
-
 
 :RuleazaScript
-
-echo --- %1
-
-sqlcmd -S %SERVER% -f 65001 -b -i "%1" <nul
-
-if errorlevel 1 echo EROARE la %1 - instalare oprita.
-
-exit /b %errorlevel%
-
-
+echo --- %1 >> "bd_log.txt"
+sqlcmd -S %SERVER% -d ClubCalculatoare -f 65001 -b -i "%1" >> "bd_log.txt" 2>&1 <nul
+if errorlevel 1 (
+    echo   [EROARE] %1
+    set /a NR_EROARE=NR_EROARE+1
+) else (
+    echo   [OK]     %1
+)
+exit /b 0
 
 :Verificare
-
-echo.
-
 echo === Verificare finala ===
-
-sqlcmd -S %SERVER% -d ClubCalculatoare -Q "SET NOCOUNT ON; SELECT 'Echipamente='+CAST(COUNT(*) AS VARCHAR) FROM Echipamente; SELECT 'Utilizatori='+CAST(COUNT(*) AS VARCHAR) FROM Utilizatori; SELECT 'EchipamentFoto='+CAST(COUNT(*) AS VARCHAR) FROM EchipamentFoto; SELECT 'Favorite='+CAST(COUNT(*) AS VARCHAR) FROM Favorite; SELECT cod FROM Permisiuni WHERE cod LIKE 'FOTO[_]%%' OR cod='FAVORITE' OR cod='CALCULATOR_COST';" -b <nul
-
+sqlcmd -S %SERVER% -d ClubCalculatoare -b -h -1 -W -Q "SET NOCOUNT ON; SELECT 'Echipamente='+CAST((SELECT COUNT(*) FROM Echipamente) AS VARCHAR(10)) + '  Utilizatori='+CAST((SELECT COUNT(*) FROM Utilizatori) AS VARCHAR(10)) + '  EchipamentFoto='+CAST((SELECT COUNT(*) FROM EchipamentFoto) AS VARCHAR(10)) + '  Favorite='+CAST((SELECT COUNT(*) FROM Favorite) AS VARCHAR(10));" <nul
 if errorlevel 1 goto EroareVerificare
 
 echo.
-
-echo GATA: baza ClubCalculatoare este la zi pe %SERVER%.
-
+echo ============================================================
+echo  GATA: baza ClubCalculatoare este pregatita pe %SERVER%.
+echo ============================================================
+echo.
+echo  Conturi:  Constantin / 121212  (Administrator)
+echo            Maxim / 575757       (Utilizator)
 goto SfarsitOk
 
-
-
 :FaraSqlcmd
-
-echo EROARE: sqlcmd nu a fost gasit in PATH.
-
-echo Instalati SQL Server Command Line Utilities sau rulati
-
-echo scripturile manual din SSMS.
-
+echo.
+echo  EROARE: sqlcmd nu a fost gasit in PATH.
+echo  Instalati SQL Server Client Tools sau rulati scripturile
+echo  manual din SSMS (vezi INSTRUCTIUNI.txt).
 goto SfarsitEroare
-
-
 
 :EroareConectare
-
-echo EROARE: nu s-a putut conecta la %SERVER%.
-
-echo Verificati: 1. SQL Server pornit, 2. numele instantei,
-
-echo 3. autentificare Windows permisa.
-
+echo.
+echo  EROARE: nu s-a putut conecta la %SERVER%.
+echo  Verificati: 1) serviciul SQL Server pornit, 2) numele
+echo  instantei, 3) autentificarea Windows permisa.
 goto SfarsitEroare
-
-
 
 :EroareInstalare
-
-echo EROARE la instalare - verificati mesajele de mai sus.
-
+echo.
+echo  EROARE la instalare - detalii in bd_log.txt.
 goto SfarsitEroare
 
-
+:EroareUpdate
+echo.
+echo  EROARE la cel putin un script - detalii in bd_log.txt.
+goto SfarsitEroare
 
 :EroareVerificare
-
-echo AVERTISMENT: verificarea a esuat - baza partiala?
-
+echo.
+echo  ATENTIE: verificarea finala a esuat - baza incompleta?
+echo  Detalii in bd_log.txt.
 goto SfarsitEroare
 
-
-
 :SfarsitEroare
-
 popd
-
+echo.
 pause
-
 exit /b 1
 
-
-
 :SfarsitOk
-
 popd
-
+echo.
 pause
-
 exit /b 0
-

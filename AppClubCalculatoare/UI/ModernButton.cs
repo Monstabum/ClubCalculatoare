@@ -1,16 +1,24 @@
 using System;
+using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
+
 namespace AppClubCalculatoare.UI
 {
     internal enum ButtonVariant { Primary, Secondary, Ghost, Danger, Success }
 
+    /// <summary>
+    /// Buton plat, fără umbră, fără gradient și fără glow. Aceeași limbă
+    /// vizuală ca <see cref="MaterialButton"/>, folosită de componentele
+    /// construite direct în cod (dashboard, harta sălii).
+    /// </summary>
     internal class ModernButton : Button
     {
+        [DefaultValue(ButtonVariant.Primary)]
         public ButtonVariant Variant { get; set; } = ButtonVariant.Primary;
-        public int CornerRadius { get; set; } = Theme.Radius;
-        public bool ShowShadow { get; set; } = false;
+        [DefaultValue(Design.RadiusSmall)]
+        public int CornerRadius { get; set; } = Design.RadiusSmall;
         private bool _hover;
         private bool _pressed;
 
@@ -21,16 +29,17 @@ namespace AppClubCalculatoare.UI
                      ControlStyles.OptimizedDoubleBuffer |
                      ControlStyles.ResizeRedraw |
                      ControlStyles.SupportsTransparentBackColor, true);  // necesar pentru fundaluri custom
+            DoubleBuffered = true;
             FlatStyle = FlatStyle.Flat;
             FlatAppearance.BorderSize = 0;
             // Nu lăsăm stratul standard să pinteze fundalul la hover/apăsare — desenăm noi totul.
             FlatAppearance.MouseOverBackColor = Color.Empty;
             FlatAppearance.MouseDownBackColor = Color.Empty;
-            BackColor = Theme.Surface;                          // dens implicit, NU Transparent
-            Font = Theme.BodyBold;
+            BackColor = Design.Surface;                          // dens implicit, NU Transparent
+            Font = Design.FontButton;
             Cursor = Cursors.Hand;
-            Height = MaterialTheme.Scale(36);
-            Padding = new Padding(12, 0, 12, 0);
+            Height = Design.ButtonH;
+            Padding = new Padding(Design.Sp3, 0, Design.Sp3, 0);
             UseVisualStyleBackColor = false;
         }
 
@@ -39,34 +48,41 @@ namespace AppClubCalculatoare.UI
         protected override void OnMouseDown(MouseEventArgs e) { _pressed = true; Invalidate(); base.OnMouseDown(e); }
         protected override void OnMouseUp(MouseEventArgs e) { _pressed = false; Invalidate(); base.OnMouseUp(e); }
         protected override void OnEnabledChanged(EventArgs e) { Invalidate(); base.OnEnabledChanged(e); }
-        protected override void OnResize(EventArgs e) { base.OnResize(e); Theme.Rounded(this, CornerRadius); }
-        protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); Theme.Rounded(this, CornerRadius); }
 
         protected override void OnPaint(PaintEventArgs pevent)
         {
             var g = pevent.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
 
-            // Nu golitim niciodată cu transparent — luăm primul culoare dens pe lanțul de părinți.
-            Color bg = Theme.ResolveOpaqueBackground(this, Theme.Surface);
+            // Nu golitim niciodată cu transparent — luăm prima culoare densă pe lanțul de părinți.
+            Color bg = Design.ResolveOpaqueBackground(this, Design.Surface);
             g.Clear(bg);
 
-            Color back, fore, border;
-            ResolveColors(bg, out back, out fore, out border);
+            Color back, fore, border, overlay;
+            ResolveColors(out back, out fore, out border, out overlay);
 
             if (!Enabled)
             {
-                back = MaterialTheme.Surface;
-                fore = MaterialTheme.TextSecondary;
-                border = MaterialTheme.Divider;
+                back = Design.Surface;
+                fore = Design.TextDim;
+                border = Design.Border;
+                overlay = Color.Transparent;
             }
 
             var rect = new Rectangle(0, 0, Math.Max(1, Width - 1), Math.Max(1, Height - 1));
-            using (var path = MaterialTheme.RoundedPath(rect, CornerRadius))
+
+            using (var path = Design.RoundedPath(rect, CornerRadius))
             {
-                using (var brush = new SolidBrush(back))           // back e ÎNTOTDEAUNA dens
-                    g.FillPath(brush, path);
-                if (border.A > 16 && border.ToArgb() != back.ToArgb())
+                if (back.A > 0)
+                    using (var brush = new SolidBrush(back))
+                        g.FillPath(brush, path);
+
+                if (overlay.A > 0)
+                    using (var brush = new SolidBrush(overlay))
+                        g.FillPath(brush, path);
+
+                if (border.A > 16)
                     using (var pen = new Pen(border, 1f))
                         g.DrawPath(pen, path);
             }
@@ -76,37 +92,51 @@ namespace AppClubCalculatoare.UI
                 TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
         }
 
-        // bg — fundal dens rezolvat; toate stările „transparente” sunt înlocuite cu bg / Blend(bg, …).
-        private void ResolveColors(Color bg, out Color back, out Color fore, out Color border)
+        private void ResolveColors(out Color back, out Color fore,
+            out Color border, out Color overlay)
         {
+            bool activ = _hover || _pressed;
+            overlay = Color.Transparent;
+
             switch (Variant)
             {
                 case ButtonVariant.Primary:
-                    back = _pressed ? Theme.AccentHover : (_hover ? Theme.AccentHover : Theme.Accent);
-                    fore = Color.White; border = back; break;
+                    back = activ ? Design.AccentHover : Design.Accent;
+                    fore = Design.AccentText;
+                    border = Color.Transparent;
+                    return;
 
                 case ButtonVariant.Secondary:
-                    back = _hover ? MaterialTheme.SurfaceAlt : MaterialTheme.Surface;
-                    fore = _hover ? MaterialTheme.Accent : MaterialTheme.TextPrimary;
-                    border = MaterialTheme.Divider; break;
+                    back = Design.SurfaceRaised;
+                    fore = Design.Text;
+                    border = Design.Border;
+                    overlay = _hover ? Design.Alpha(Design.Text, 10) : Color.Transparent;
+                    return;
 
                 case ButtonVariant.Ghost:
-                    back = _hover ? MaterialTheme.SurfaceAlt : MaterialTheme.Surface;
-                    fore = _hover ? MaterialTheme.TextPrimary : MaterialTheme.TextSecondary;
-                    border = Color.Transparent; break;
+                    back = Color.Transparent;
+                    fore = _hover ? Design.Text : Design.TextMuted;
+                    border = Color.Transparent;
+                    overlay = _hover ? Design.Alpha(Color.White, 6) : Color.Transparent;
+                    return;
 
                 case ButtonVariant.Danger:
-                    back = _pressed ? Color.FromArgb(0xB0, 0x35, 0x35)
-                                    : (_hover ? Color.FromArgb(0xC0, 0x3A, 0x3A) : Theme.Danger);
-                    fore = Color.White; border = back; break;
+                    back = activ ? Design.DangerBright : Design.Danger;
+                    fore = Color.White;
+                    border = Color.Transparent;
+                    return;
 
                 case ButtonVariant.Success:
-                    back = _pressed ? Color.FromArgb(0x07, 0x85, 0x52)
-                                    : (_hover ? Color.FromArgb(0x08, 0x91, 0x5A) : Theme.Success);
-                    fore = Color.White; border = back; break;
+                    back = activ ? Design.SuccessBright : Design.Success;
+                    fore = Color.White;
+                    border = Color.Transparent;
+                    return;
 
                 default:
-                    back = Theme.Accent; fore = Color.White; border = back; break;
+                    back = Design.Accent;
+                    fore = Design.AccentText;
+                    border = Color.Transparent;
+                    return;
             }
         }
     }

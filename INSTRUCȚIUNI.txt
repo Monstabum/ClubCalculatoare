@@ -1,12 +1,15 @@
-﻿INSTRUCȚIUNI — AppClubCalculatoare (WinForms, .NET Framework 4.7.2)
+﻿INSTRUCȚIUNI — AppClubCalculatoare (WinForms, .NET 8)
 ============================================================
 
 1) BAZA DE DATE — varianta rapidă (recomandat):
    Dublu-click pe BD\Instaleaza_BD.bat (din folderul BD).
-   Instalare NOUA = toate cele 7 scripturi dintr-un foc; ACTUALIZARE =
-   doar pasii 2-7, fara pierderi (pastreaza datele si pozele).
-   Necesita sqlcmd (vine cu SQL Server). Serverul implicit este
-   .\SQLEXPRESS; alt server: Instaleaza_BD.bat NUME_SERVER MOD.
+   Rulează singur, fără întrebări: dacă baza de date lipsește,
+   o instalează complet (toate cele 8 scripturi); dacă există,
+   face actualizarea sigură, fără pierderi (păstrează datele
+   și pozele). Necesită sqlcmd (vine cu SQL Server). Serverul
+   implicit este .\SQLEXPRESS; alt server: Instaleaza_BD.bat
+   NUME_SERVER; reinstalare completă (resetează datele demo):
+   Instaleaza_BD.bat NOU. Log tehnic: BD\bd_log.txt.
 
    Varianta manuală (SSMS, în această ordine):
    1. BD\ClubCalculatoare.sql
@@ -20,6 +23,7 @@
       permisiunile FOTO_VIZUALIZARE_ECHIPAMENTE/FOTO_MODIFICARE_ECHIPAMENTE)
    6. BD\Favorite.sql            (tabela Favorite + permisiunea FAVORITE)
    7. BD\CalculatorCost.sql      (permisiunea CALCULATOR_COST)
+   8. BD\Adauga_DurataMinute.sql (coloana Sesiuni.durata_minute)
    Toate scripturile sunt idempotente (re-rulabile).
 
 2) CONNECTION STRING (AppClubCalculatoare\App.config):
@@ -43,6 +47,6 @@
    - Țintă: C# 7.3, fără erori/avertismente CS0xxx.
 
 6) AUTENTIFICARE (după scripturi):
-   - admin: Constantin / 121212 (Admin — Administrator)
-   - user:  Maxim / 575757 (User — Utilizator)
+   - admin: Alexandru / 121212 (Admin — Administrator)
+   - user:  Mihail / 575757 (User — Utilizator)
    Drepturile user-ului se acordă din „Permisiuni" (FormUtilizatori).

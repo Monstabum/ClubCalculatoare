@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.IO;
 using System.Text.RegularExpressions;
 
@@ -11,7 +11,7 @@ namespace AppClubCalculatoare
     /// in echipamente — alternativa la pozele procedurale "Poze demo".
     ///
     /// Corespondenta fisier -> echipament:
-    ///   1. din nume: "Prop01_...", "Echipament 3...", "10.jpg";
+    ///   1. din nume: "Echip01_...", "Prop01_..." (compat), "10.jpg";
     ///   2. restul fisierelor (nume oarecare, ex. descarcari) se
     ///      distribuie uniform, in ordine alfabetica, incepand cu
     ///      echipamentele care nu au primit niciun fisier cu nume.
@@ -30,9 +30,9 @@ namespace AppClubCalculatoare
         private static readonly string[] ExtensiiPermise =
             { ".jpg", ".jpeg", ".png", ".bmp", ".webp" };
 
-        /// <summary>"Prop01_...", "prop 7", "Echipament-3" -> id echipament.</summary>
+        /// <summary>"Echip01_...", "Prop01_...", "echipament 7" -> id echipament.</summary>
         private static readonly Regex RegexEchipament =
-            new Regex(@"(?i)\bprop(?:rietate)?[\s_\-]*(\d{1,4})(?!\d)");
+            new Regex(@"(?i)\b(?:prop(?:rietate)?|echip(?:ament)?)[\s_\-]*(\d{1,4})(?!\d)");
 
         /// <summary>
         /// "10.jpg", "3 - Server" -> id. Hexazecimalele de tip hash
@@ -277,7 +277,7 @@ namespace AppClubCalculatoare
             List<int> rezultat = new List<int>();
             try
             {
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     conn.Open();
                     const string sql =

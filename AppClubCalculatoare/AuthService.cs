@@ -1,7 +1,8 @@
 using System;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace AppClubCalculatoare
@@ -16,8 +17,22 @@ namespace AppClubCalculatoare
         public string NumeComplet   { get; set; }
         public string MesajEroare   { get; set; }
 
+        /// <summary>
+        /// FIX BUG-08: true când contul este blocat temporar (protecție brute-force).
+        /// Formularul de login are nevoie de asta ca să afișeze momentul exact al
+        /// deblocării și să nu inducă în eroare contorul local de încercări.
+        /// </summary>
+        public bool Blocat { get; set; }
+
+        /// <summary>Momentul de la care contul poate fi folosit din nou.</summary>
+        public DateTime? BlocatPanaLa { get; set; }
+
         public static AuthResult Esuat(string mesaj) =>
             new AuthResult { Succes = false, MesajEroare = mesaj };
+
+        /// <summary>Eșec din cauza blocării temporare a contului.</summary>
+        public static AuthResult BlocatTemporar(string mesaj, DateTime? panaLa) =>
+            new AuthResult { Succes = false, MesajEroare = mesaj, Blocat = true, BlocatPanaLa = panaLa };
 
         public static AuthResult Reusit(string rol, string numeComplet) =>
             new AuthResult { Succes = true, Rol = rol, NumeComplet = numeComplet };
@@ -76,7 +91,7 @@ namespace AppClubCalculatoare
         /// Verifica credentialele fata de baza de date (async, non-blocking UI).
         /// </summary>
         public static async Task<AuthResult> AutentificaAsync(
-            string username, string parola)
+            string username, string parola, CancellationToken ct = default)
         {
             // Validare de baza (fara a accesa DB)
             if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(parola))
@@ -89,10 +104,8 @@ namespace AppClubCalculatoare
 
             try
             {
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                return await SqlDb.WithConnectionAsync(async (conn, token) =>
                 {
-                    await conn.OpenAsync();
-
                     // ── Pasul 1: Preia datele utilizatorului ─────────
                     // Interogare cu parametru → protejat contra SQL injection.
                     // Nu comparam parola direct in SQL — hash-ul e calculat in C#
@@ -105,100 +118,121 @@ namespace AppClubCalculatoare
                         FROM   Utilizatori
                         WHERE  username = @username";  // case-insensitive implicit in SQL Server (collation CI)
 
-                    using (var cmd = new SqlCommand(query, conn))
+                    string hashStored, rol, numeComplet;
+                    bool activ;
+                    int tentative;
+                    DateTime? blocatPana;
+
+                    await using (var cmd = new SqlCommand(query, conn))
                     {
+                        cmd.CommandTimeout = SqlDb.DefaultTimeoutSeconds;
                         cmd.Parameters.Add("@username", System.Data.SqlDbType.NVarChar, 50)
                                       .Value = username;
 
-                        using (var reader = await cmd.ExecuteReaderAsync())
+                        await using (SqlDataReader reader =
+                            await cmd.ExecuteReaderAsync(token).ConfigureAwait(false))
                         {
-                            if (!await reader.ReadAsync())
+                            if (!await reader.ReadAsync(token).ConfigureAwait(false))
                             {
                                 // Username inexistent — mesaj intentionat vag
                                 AppLogger.Security($"Login esuat: username necunoscut '{username}'");
                                 return AuthResult.Esuat("Utilizator sau parola incorecta.");
                             }
 
-                            string hashStored  = reader["parola_hash"].ToString();
-                            string rol         = reader["rol"].ToString();          // "Admin" | "User"
-                            string numeComplet = reader["nume_complet"].ToString();
-                            bool   activ       = Convert.ToBoolean(reader["activ"]);
+                            hashStored  = reader["parola_hash"].ToString();
+                            rol         = reader["rol"].ToString();          // "Admin" | "User"
+                            numeComplet = reader["nume_complet"].ToString();
+                            activ       = Convert.ToBoolean(reader["activ"]);
 
                             // Blocare persistenta (pot lipsi pe baze vechi — fail-safe)
-                            int  tentative   = ColoanaExista(reader, "tentative_esuate")
+                            tentative   = ColoanaExista(reader, "tentative_esuate")
                                                ? Convert.ToInt32(reader["tentative_esuate"]) : 0;
-                            DateTime? blocatPana = ColoanaExista(reader, "blocat_pana_la")
+                            blocatPana  = ColoanaExista(reader, "blocat_pana_la")
                                                && reader["blocat_pana_la"] != DBNull.Value
                                                ? (DateTime?)Convert.ToDateTime(reader["blocat_pana_la"])
                                                : null;
-
-                            reader.Close();
-
-                            // ── Pasul 2: Verifica daca contul e activ ────
-                            if (!activ)
-                            {
-                                AppLogger.Security($"Login esuat: cont inactiv '{username}'");
-                                return AuthResult.Esuat("Contul tau este dezactivat. Contacteaza administratorul.");
-                            }
-
-                            // ── Pasul 2b: Blocare persistenta brut-force ──
-                            // Contorul si termenul de blocare sunt salvate in BD,
-                            // deci blocarea supravietuieste repornirii aplicatiei.
-                            if (blocatPana.HasValue && blocatPana.Value > DateTime.Now)
-                            {
-                                int minuteRamase = (int)Math.Ceiling(
-                                    (blocatPana.Value - DateTime.Now).TotalMinutes);
-                                AppLogger.Security(
-                                    $"Login esuat: cont blocat temporar '{username}'");
-                                return AuthResult.Esuat(
-                                    "Cont blocat din cauza tentativelor esuate.\n" +
-                                    $"Reia dupa {minuteRamase} minut(e).");
-                            }
-
-                            // ── Pasul 3: Compara hash-urile ──────────────
-                            // Comparatie constanta in timp (evita timing attacks)
-                            bool parolaCorespondenta = StringCompareSecure(hashIntrodus, hashStored);
-
-                            if (!parolaCorespondenta)
-                            {
-                                int maxTentative = DatabaseConfig.MaxLoginAttempts;
-                                tentative++;
-
-                                if (maxTentative > 0 && tentative >= maxTentative)
-                                {
-                                    // Epuizare tentative → blocheaza contul in BD
-                                    InregistreazaBlocare(username, tentative);
-                                    AppLogger.Security(
-                                        $"Cont blocat persistent: '{username}' dupa {tentative} tentative");
-                                    return AuthResult.Esuat(
-                                        $"Cont blocat pentru {DatabaseConfig.LoginLockoutMinutes} minute\n" +
-                                        "din cauza tentativelor esuate repetate.");
-                                }
-
-                                InregistreazaTentativa(username, tentative);
-                                AppLogger.Security(
-                                    $"Login esuat: parola gresita pentru '{username}' ({tentative}/{maxTentative})");
-                                return AuthResult.Esuat("Utilizator sau parola incorecta.");
-                            }
-
-                            // ── Pasul 3b: Parola corecta → reseteaza contorul ─
-                            if (tentative > 0 || blocatPana.HasValue)
-                                ReseteazaBlocare(username);
-
-                            // ── Pasul 4: Actualizeaza ultima_autentificare ─
-                            await ActualizeazaUltimaAutentificareAsync(conn, username);
-
-                            AppLogger.Security($"Login reusit: '{username}' | Rol: {rol}", username);
-                            return AuthResult.Reusit(rol, numeComplet);
                         }
                     }
-                }
+
+                    // ── Pasul 2: Verifica daca contul e activ ────
+                    if (!activ)
+                    {
+                        AppLogger.Security($"Login esuat: cont inactiv '{username}'");
+                        return AuthResult.Esuat("Contul tau este dezactivat. Contacteaza administratorul.");
+                    }
+
+                    // ── Pasul 2b: Blocare persistenta brut-force ──
+                    // Contorul si termenul de blocare sunt salvate in BD,
+                    // deci blocarea supravietuieste repornirii aplicatiei.
+                    if (blocatPana.HasValue && blocatPana.Value > DateTime.Now)
+                    {
+                        int minuteRamase = (int)Math.Ceiling(
+                            (blocatPana.Value - DateTime.Now).TotalMinutes);
+                        AppLogger.Security(
+                            $"Login esuat: cont blocat temporar '{username}'");
+                        // FIX BUG-08: mesaj cu momentul exact al deblocării.
+                        // Înainte clientul afișa „Repornește aplicația" — sfat
+                        // greșit, pentru că blocarea e persistentă în BD.
+                        return AuthResult.BlocatTemporar(
+                            "Cont blocat din cauza tentativelor esuate.\n" +
+                            $"Reia autentificarea dupa {minuteRamase} minut(e) " +
+                            $"(dupa ora {blocatPana.Value:HH:mm}).",
+                            blocatPana.Value);
+                    }
+
+                    // ── Pasul 3: Compara hash-urile ──────────────
+                    // Comparatie constanta in timp (evita timing attacks)
+                    bool parolaCorespondenta = StringCompareSecure(hashIntrodus, hashStored);
+
+                    if (!parolaCorespondenta)
+                    {
+                        int maxTentative = DatabaseConfig.MaxLoginAttempts;
+                        tentative++;
+
+                        if (maxTentative > 0 && tentative >= maxTentative)
+                        {
+                            // Epuizare tentative → blocheaza contul in BD
+                            DateTime? panaLa = await InregistreazaBlocareAsync(
+                                username, tentative, token).ConfigureAwait(false);
+                            AppLogger.Security(
+                                $"Cont blocat persistent: '{username}' dupa {tentative} tentative");
+                            // FIX BUG-08: spunem exact până când e blocat contul,
+                            // în loc să trimitem utilizatorul să repornească aplicația.
+                            return AuthResult.BlocatTemporar(
+                                $"Cont blocat pentru {DatabaseConfig.LoginLockoutMinutes} minute\n" +
+                                "din cauza tentativelor esuate repetate." +
+                                (panaLa.HasValue ? $"\nReia autentificarea dupa ora {panaLa.Value:HH:mm}." : ""),
+                                panaLa);
+                        }
+
+                        await InregistreazaTentativaAsync(username, tentative, token)
+                            .ConfigureAwait(false);
+                        AppLogger.Security(
+                            $"Login esuat: parola gresita pentru '{username}' ({tentative}/{maxTentative})");
+                        return AuthResult.Esuat("Utilizator sau parola incorecta.");
+                    }
+
+                    // ── Pasul 3b: Parola corecta → reseteaza contorul ─
+                    if (tentative > 0 || blocatPana.HasValue)
+                        await ReseteazaBlocareAsync(username, token).ConfigureAwait(false);
+
+                    // ── Pasul 4: Actualizeaza ultima_autentificare ─
+                    await ActualizeazaUltimaAutentificareAsync(conn, username, token)
+                        .ConfigureAwait(false);
+
+                    AppLogger.Security($"Login reusit: '{username}' | Rol: {rol}", username);
+                    return AuthResult.Reusit(rol, numeComplet);
+                }, ct).ConfigureAwait(false);
             }
             catch (SqlException ex)
             {
                 AppLogger.Error(ex, "AuthService.AutentificaAsync");
                 // Nu expunem detalii tehnice utilizatorului
                 return AuthResult.Esuat("Eroare de conectare la baza de date. Incearca din nou.");
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -220,23 +254,19 @@ namespace AppClubCalculatoare
         }
 
         /// <summary>Creste contorul de tentative esuate in BD.</summary>
-        private static void InregistreazaTentativa(string username, int tentative)
+        private static async Task InregistreazaTentativaAsync(
+            string username, int tentative, CancellationToken ct)
         {
             try
             {
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                const string sql = @"
+                    UPDATE Utilizatori SET tentative_esuate = @t
+                    WHERE  username = @user";
+                await SqlDb.ExecuteAsync(sql, p =>
                 {
-                    conn.Open();
-                    const string sql = @"
-                        UPDATE Utilizatori SET tentative_esuate = @t
-                        WHERE  username = @user";
-                    using (var cmd = new SqlCommand(sql, conn))
-                    {
-                        cmd.Parameters.Add("@t",    System.Data.SqlDbType.Int).Value        = tentative;
-                        cmd.Parameters.Add("@user", System.Data.SqlDbType.NVarChar, 50).Value = username;
-                        cmd.ExecuteNonQuery();
-                    }
-                }
+                    p.Add("@t",    System.Data.SqlDbType.Int).Value           = tentative;
+                    p.Add("@user", System.Data.SqlDbType.NVarChar, 50).Value  = username;
+                }, ct).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -245,52 +275,52 @@ namespace AppClubCalculatoare
             }
         }
 
-        /// <summary>Blocheaza contul in BD pana la NOW + LoginLockoutMinutes.</summary>
-        private static void InregistreazaBlocare(string username, int tentative)
+        /// <summary>
+        /// Blocheaza contul in BD pana la NOW + LoginLockoutMinutes.
+        /// FIX BUG-08: intoarce momentul exact al deblocarii (calculat de SQL Server,
+        /// nu de client — astfel mesajul afisat corespunde chiar cu ce e in BD).
+        /// </summary>
+        private static async Task<DateTime?> InregistreazaBlocareAsync(
+            string username, int tentative, CancellationToken ct)
         {
             try
             {
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                const string sql = @"
+                    UPDATE Utilizatori
+                    SET    tentative_esuate = @t,
+                           blocat_pana_la   = DATEADD(MINUTE, @minute, GETDATE())
+                    OUTPUT INSERTED.blocat_pana_la
+                    WHERE  username = @user";
+
+                object rezultat = await SqlDb.ScalarAsync<object>(sql, p =>
                 {
-                    conn.Open();
-                    const string sql = @"
-                        UPDATE Utilizatori
-                        SET    tentative_esuate = @t,
-                               blocat_pana_la   = DATEADD(MINUTE, @minute, GETDATE())
-                        WHERE  username = @user";
-                    using (var cmd = new SqlCommand(sql, conn))
-                    {
-                        cmd.Parameters.Add("@t",      System.Data.SqlDbType.Int).Value        = tentative;
-                        cmd.Parameters.Add("@minute", System.Data.SqlDbType.Int).Value        = DatabaseConfig.LoginLockoutMinutes;
-                        cmd.Parameters.Add("@user",   System.Data.SqlDbType.NVarChar, 50).Value = username;
-                        cmd.ExecuteNonQuery();
-                    }
-                }
+                    p.Add("@t",      System.Data.SqlDbType.Int).Value           = tentative;
+                    p.Add("@minute", System.Data.SqlDbType.Int).Value           = DatabaseConfig.LoginLockoutMinutes;
+                    p.Add("@user",   System.Data.SqlDbType.NVarChar, 50).Value  = username;
+                }, ct, SqlDb.DefaultTimeoutSeconds, retryTransient: false).ConfigureAwait(false);
+
+                if (rezultat != null && rezultat != DBNull.Value)
+                    return Convert.ToDateTime(rezultat);
             }
             catch (Exception ex)
             {
                 AppLogger.Warn($"Nu s-a putut bloca contul in BD: {ex.Message}", "AuthService");
             }
+            return null;
         }
 
         /// <summary>Reseteaza contorul si blocarea dupa un login reusit.</summary>
-        private static void ReseteazaBlocare(string username)
+        private static async Task ReseteazaBlocareAsync(string username, CancellationToken ct)
         {
             try
             {
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
-                {
-                    conn.Open();
-                    const string sql = @"
-                        UPDATE Utilizatori
-                        SET    tentative_esuate = 0, blocat_pana_la = NULL
-                        WHERE  username = @user";
-                    using (var cmd = new SqlCommand(sql, conn))
-                    {
-                        cmd.Parameters.Add("@user", System.Data.SqlDbType.NVarChar, 50).Value = username;
-                        cmd.ExecuteNonQuery();
-                    }
-                }
+                const string sql = @"
+                    UPDATE Utilizatori
+                    SET    tentative_esuate = 0, blocat_pana_la = NULL
+                    WHERE  username = @user";
+                await SqlDb.ExecuteAsync(sql, p =>
+                    p.Add("@user", System.Data.SqlDbType.NVarChar, 50).Value = username,
+                    ct).ConfigureAwait(false);
             }
             catch (Exception ex)
             {
@@ -298,10 +328,44 @@ namespace AppClubCalculatoare
             }
         }
 
+        /// <summary>
+        /// FIX BUG-08: citeste din BD momentul pana la care contul este blocat.
+        /// Folosit de formularul de login ca sa arate imediat, la pornire, starea
+        /// reala a contului (blocarea e persistenta, deci supravietuieste
+        /// repornirii aplicatiei). Intoarce null daca nu e blocat sau daca
+        /// informatia nu poate fi citita.
+        /// </summary>
+        public static async Task<DateTime?> ObtineBlocarePanaLaAsync(
+            string username, CancellationToken ct = default)
+        {
+            if (string.IsNullOrWhiteSpace(username)) return null;
+            try
+            {
+                const string sql = @"
+                    SELECT blocat_pana_la
+                    FROM   Utilizatori
+                    WHERE  username = @u";
+
+                object val = await SqlDb.ScalarAsync<object>(sql,
+                    p => p.Add("@u", System.Data.SqlDbType.NVarChar, 50).Value = username,
+                    ct).ConfigureAwait(false);
+
+                if (val == null || val == DBNull.Value) return null;
+                DateTime pana = Convert.ToDateTime(val);
+                return pana > DateTime.Now ? (DateTime?)pana : null;
+            }
+            catch (Exception ex)
+            {
+                // Coloanele pot lipsi pe baze vechi — nu blocam autentificarea.
+                AppLogger.Warn($"Nu s-a putut citi starea de blocare: {ex.Message}", "AuthService");
+                return null;
+            }
+        }
+
         // ── Helpers private ─────────────────────────────────────────
 
         private static async Task ActualizeazaUltimaAutentificareAsync(
-            SqlConnection conn, string username)
+            SqlConnection conn, string username, CancellationToken ct)
         {
             try
             {
@@ -312,9 +376,10 @@ namespace AppClubCalculatoare
 
                 using (var cmd = new SqlCommand(sql, conn))
                 {
+                    cmd.CommandTimeout = SqlDb.DefaultTimeoutSeconds;
                     cmd.Parameters.Add("@username", System.Data.SqlDbType.NVarChar, 50)
                                   .Value = username;
-                    await cmd.ExecuteNonQueryAsync();
+                    await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)

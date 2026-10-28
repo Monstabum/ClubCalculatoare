@@ -1,9 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Data.SqlClient;
 using System.Drawing;
 using System.Globalization;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using System.Windows.Forms.DataVisualization.Charting;
@@ -12,40 +11,47 @@ using AppClubCalculatoare.UI;
 namespace AppClubCalculatoare
 {
     /// <summary>
-    /// Tabloul de bord cu indicatori-cheie (KPI) — design modern.
-    /// Layout responsiv: KPI cards în grid, grafice în TabControl,
-    /// top operatori, alerte clicabile.
+    /// Tabloul de bord cu indicatori-cheie (KPI).
+    ///
+    /// Design: ierarhie pe suprafețe și tipografie, un singur accent cyan.
+    /// KPI-urile stau într-un singur container cu separatoare de 1px,
+    /// graficele folosesc doar accent + un neutru, alertele sunt o listă
+    /// compactă cu punct de 6px (nu badge-uri colorate).
     /// </summary>
     internal class PanouDashboard : UserControl
     {
-        private readonly string connectionString;
-
-        // ── KPI cards ──────────────────────────────────────────────
+        // -- KPI cards ----------------------------------------------
         private KpiCard kpiEchipamente, kpiSesiuni, kpiRezervari;
         private KpiCard kpiIncasareLuna, kpiIncasareTotal, kpiPortofoliu;
+        private TableLayoutPanel _kpiGrid;
 
-        // ── Top 3 operatori ───────────────────────────────────────────
+        // -- Top 3 operatori -------------------------------------------
         private readonly Label[] lblOperatorNume = new Label[3];
         private readonly Label[] lblOperatorIncasare = new Label[3];
+        private readonly Label[] lblOperatorRank = new Label[3];
+        private RoundLabel _punctLoc1;
 
-        // ── Layout refs (pentru responsive) ────────────────────────
+        // -- Layout refs (pentru responsive) ------------------------
         private Panel _leftCol, _rightCol, _alertCard;
         private Panel _periodPanel;
-        private ModernButton _btnArataTot;
-        private int _yGrafice, _yAlerte;
-        private const int _pad = 16;
-        private const int _gap = 16;
+        private LinkLabel _lnkArataTot;
+        private Label _lblTitlu, _lblSub, _lblTitluIncasare, _lblRezumatIncasare;
+        private int _yKpi, _yGrafice, _yAlerte;
+        private const int _pad = Design.Sp4;
+        private const int _gap = Design.Sp4;
+        private const int _kpiH = 240;
+        private const int _grafH = 300;
+        private const int _alerteH = 200;
 
-        // ── Selector perioadă ──────────────────────────────────────
+        // -- Selector perioada --------------------------------------
         private ComboBox cmbAn, cmbLuna;
         private const string ToateAnii = "Toate anii";
         private const string ToateLunile = "Toate lunile";
         private bool _incarcSelectii;
-        private bool _primaIncarcare = true;
 
-        // ── Alerte ─────────────────────────────────────────────────
+        // -- Alerte -------------------------------------------------
         private Label lblRezumatAlerte;
-        private readonly Label[] lblAlertaBadge = new Label[3];
+        private readonly RoundLabel[] punctAlerta = new RoundLabel[3];
         private readonly Label[] lblAlertaText = new Label[3];
         private readonly Label[] lblAlertaDetaliu = new Label[3];
         private readonly int[] numarAlerta = new int[3];
@@ -65,80 +71,86 @@ namespace AppClubCalculatoare
                    && zile > 0 && zile <= 3650
                 ? zile : implicit_;
         }
-        // FIX_21: lunile se afișează în română indiferent de limba Windows (pe un OS rus apăreau nume de luni chirilice în interfața română).
+        // FIX_21: lunile se afi?eaza in romana indiferent de limba Windows (pe un OS rus apareau nume de luni chirilice in interfa?a romana).
         private static readonly CultureInfo CulturaRo = new CultureInfo("ro-RO");
 
         public event Action<int, bool> AlertaDoubleClick;
 
-        // ── Grafice ────────────────────────────────────────────────
-        private TabControl tabGrafice;
+        // -- Grafice ------------------------------------------------
         private Chart chartIncasareLunar;
         private Chart chartTipuriEchipamente;
         private Chart chartOperatoriSesiuni;
 
-        // ── Fonturi refolosite ─────────────────────────────────────
-        private readonly Font fontAxa = new Font(Theme.FontFamily, 7.5f);
-        private readonly Font fontAxaBold = new Font(Theme.FontFamily, 8f, FontStyle.Bold);
-        private readonly Font fontLegend = new Font(Theme.FontFamily, 8f);
-        private readonly Font fontTitluGrafic = new Font(Theme.FontFamily, 8.5f, FontStyle.Bold);
-        private readonly Font fontMesaj = new Font(Theme.FontFamily, 8f, FontStyle.Italic);
-        private readonly Font fontAlertaActiva = new Font(Theme.FontFamily, 8.5f, FontStyle.Bold);
-        private readonly Font fontAlertaInactiva = new Font(Theme.FontFamily, 8.5f);
+        // -- Fonturi (scara unică din Design) -----------------------
+        private readonly Font _fAxa = Design.FontSmall;
+        private readonly Font _fAxaBold = Design.FontSmallBold;
+        private readonly Font _fLegenda = Design.FontSmall;
+        private readonly Font _fTitluGrafic = Design.FontSmallBold;
+        private readonly Font _fMesaj = Design.FontCaptionItalic;
+        private readonly Font _fAlerta = Design.FontSubtitle;
+        private readonly Font _fAlertaDetaliu = Design.FontMono;
+        private readonly Font _fRank = Design.SemiBold(11f);
+        private readonly Font _fOperNume = Design.SemiBold(10f);
+        private readonly Font _fOperSuma = Design.FontSubtitle;
+        private readonly Font _fSectiune = Design.FontOverline;
+
+        // Paleta graficelor: accent + un neutru (fără curcubeu).
+        private static readonly Color[] CuloriSerii =
+        {
+            Design.Accent, Design.Warning, Design.TextMuted,
+            Design.AccentHover, Design.AccentMuted, Design.TextDim
+        };
 
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
-                fontAxa.Dispose(); fontAxaBold.Dispose(); fontLegend.Dispose();
-                fontTitluGrafic.Dispose(); fontMesaj.Dispose();
-                fontAlertaActiva.Dispose(); fontAlertaInactiva.Dispose();
+                _ctsIncarcare?.Cancel();
+                _ctsIncarcare?.Dispose();
+                _ctsIncarcare = null;
+
+                _fAxa.Dispose(); _fAxaBold.Dispose(); _fLegenda.Dispose();
+                _fTitluGrafic.Dispose(); _fMesaj.Dispose();
+                _fAlerta.Dispose(); _fAlertaDetaliu.Dispose();
+                _fRank.Dispose(); _fOperNume.Dispose(); _fOperSuma.Dispose();
+                _fSectiune.Dispose();
             }
             base.Dispose(disposing);
         }
 
         public PanouDashboard(string connString)
         {
-            connectionString = connString;
-            // FIX_12: AutoScroll activ — pe 1366x768 tot conținutul (KPI + grafice + alerte) rămâne accesibil prin scroll.
-            this.AutoScroll = true;
-            this.BackColor = Theme.Background;
-            this.Dock = DockStyle.Fill;
+            // Connection string-ul este global în SqlDb; parametrul rămâne
+            // pentru compatibilitatea apelurilor existente.
+            _ = connString;
+            // Un singur scrollbar, la nivelul panoului de conținut: dashboard-ul
+            // își ia înălțimea completă (vezi AplicaLayoutResponsiv), altfel
+            // apăreau două bare verticale + una orizontală peste footer.
+            this.AutoScroll = false;
+            this.BackColor = Design.Bg;
+            this.Dock = DockStyle.Top;
             ConstruiesteInterfata();
             this.Resize += (s, e) => AplicaLayoutResponsiv();
-            IncarcaAsincron();
+            _ = IncarcaAsincronAsync(autoPerioada: true);
         }
+
+        /// <summary>Înălțimea necesară întregului conținut (KPI + grafice + alerte + status).</summary>
+        private int InaltimeContinut => _yAlerte + _alerteH + Design.Sp3 + 18 + Design.Sp4;
 
         private void AplicaLayoutResponsiv()
         {
-            if (_leftCol == null || _rightCol == null || _alertCard == null) return;
+            if (_kpiGrid == null || _leftCol == null || _rightCol == null || _alertCard == null) return;
             if (this.Width <= 0) return;
             this.SuspendLayout();
 
             int availW = this.ClientSize.Width - _pad * 2;
             if (availW < 300) availW = 300;
-            int cardW = Math.Max(180, (availW - _gap * 2) / 3);
-            int cardH = 110;
 
-            // KPI — 2 rânduri a 3
-            if (kpiEchipamente != null)
-            {
-                kpiEchipamente.Location = new Point(_pad, 76);
-                kpiEchipamente.Size = new Size(cardW, cardH);
-                kpiSesiuni.Location = new Point(_pad + cardW + _gap, 76);
-                kpiSesiuni.Size = new Size(cardW, cardH);
-                kpiRezervari.Location = new Point(_pad + (cardW + _gap) * 2, 76);
-                kpiRezervari.Size = new Size(cardW, cardH);
+            // ── KPI: un singur container 3×2, separatoare de 1px ──
+            _kpiGrid.Location = new Point(_pad, _yKpi);
+            _kpiGrid.Size = new Size(availW, _kpiH);
 
-                int row2 = 76 + cardH + _gap;
-                kpiIncasareLuna.Location = new Point(_pad, row2);
-                kpiIncasareLuna.Size = new Size(cardW, cardH);
-                kpiIncasareTotal.Location = new Point(_pad + cardW + _gap, row2);
-                kpiIncasareTotal.Size = new Size(cardW, cardH);
-                kpiPortofoliu.Location = new Point(_pad + (cardW + _gap) * 2, row2);
-                kpiPortofoliu.Size = new Size(cardW, cardH);
-            }
-
-            // Grafice + Top 3 — proporțional, fără tăiere
+            // ── Grafice (stânga) + Top 3 (dreapta) ────────────────
             int yGraf = _yGrafice;
             int leftW = (int)Math.Round(availW * 0.62);
             int rightW = availW - leftW - _gap;
@@ -146,38 +158,38 @@ namespace AppClubCalculatoare
             if (leftW < 380)  { leftW = 380; rightW = availW - leftW - _gap; }
 
             _leftCol.Location = new Point(_pad, yGraf);
-            _leftCol.Size = new Size(leftW, 300);
+            _leftCol.Size = new Size(leftW, _grafH);
             _rightCol.Location = new Point(_pad + leftW + _gap, yGraf);
-            _rightCol.Size = new Size(rightW, 300);
-            Theme.Rounded(_rightCol, Theme.Radius);
+            _rightCol.Size = new Size(rightW, _grafH);
 
-            // Alerte — pe toată lățimea
+            // ── Alerte — pe toata la?imea ─────────────────────────
             _alertCard.Location = new Point(_pad, _yAlerte);
-            _alertCard.Size = new Size(availW, 200);
-            Theme.Rounded(_alertCard, Theme.Radius);
+            _alertCard.Size = new Size(availW, _alerteH);
 
-            // — Re-poziționează elementele din interiorul alertei —
-            if (_btnArataTot != null && lblRezumatAlerte != null)
+            // ── Elementele din interiorul alertei ─────────────────
+            if (_lnkArataTot != null && lblRezumatAlerte != null)
             {
-                _btnArataTot.Location = new Point(_alertCard.Width - 96, 14);
-                lblRezumatAlerte.Location = new Point(_alertCard.Width - 96 - lblRezumatAlerte.Width - 12, 16);
+                _lnkArataTot.Location = new Point(_alertCard.Width - _lnkArataTot.Width - Design.Sp4, 16);
+                lblRezumatAlerte.Location = new Point(
+                    _alertCard.Width - _lnkArataTot.Width - lblRezumatAlerte.Width
+                        - Design.Sp4 - Design.Sp3, 17);
             }
             for (int i = 0; i < 3; i++)
             {
                 if (lblAlertaDetaliu[i] != null)
                 {
-                    lblAlertaDetaliu[i].Location = new Point(_alertCard.Width - 250, 65 + i * 42);
-                    lblAlertaDetaliu[i].Size = new Size(230, 18);
+                    lblAlertaDetaliu[i].Location = new Point(_alertCard.Width - 240, 64 + i * 40);
+                    lblAlertaDetaliu[i].Size = new Size(224, 18);
                 }
                 if (lblAlertaText[i] != null)
                 {
-                    int txtW = _alertCard.Width - 64 - 250 - 16;
+                    int txtW = _alertCard.Width - 60 - 250 - 16;
                     if (txtW < 120) txtW = 120;
-                    lblAlertaText[i].Size = new Size(txtW, 22);
+                    lblAlertaText[i].Size = new Size(txtW, 20);
                 }
             }
 
-            // Period panel — să nu iasă din ecran
+            // ── Period panel — sa nu iasa din ecran ───────────────
             if (_periodPanel != null)
             {
                 int maxX = this.ClientSize.Width - _periodPanel.Width - _pad;
@@ -185,436 +197,612 @@ namespace AppClubCalculatoare
                 _periodPanel.Location = new Point(maxX, _periodPanel.Location.Y);
             }
 
-            // Ajustează înălțimea totală ca să nu apară scroll dublu
+            // Ajusteaza inaltimea totala: parintele (contentPanel) este singurul
+            // care deruleaza, deci dashboard-ul trebuie sa fie complet inalt.
             var lblStatusCtrl = this.Controls.Find("lblStatus", true);
             if (lblStatusCtrl.Length > 0)
-            {
-                lblStatusCtrl[0].Location = new Point(_pad, _yAlerte + 215);
-            }
-            this.AutoScrollMinSize = new Size(0, _yAlerte + 240);
+                lblStatusCtrl[0].Location = new Point(_pad, _yAlerte + _alerteH + Design.Sp3);
+
+            int totalH = InaltimeContinut;
+            if (this.Height != totalH) this.Height = totalH;
 
             this.ResumeLayout(false);
             this.Invalidate();
         }
 
-        // ════════════════════════════════════════════════════════════
-        //  CONSTRUIRE INTERFAȚĂ
-        // ════════════════════════════════════════════════════════════
+        // ============================================================
+        //  CONSTRUIRE INTERFA?A
+        // ============================================================
         private void ConstruiesteInterfata()
         {
-            int y = 0;
             int pad = _pad;
 
-            // ── Titlu + selector perioadă ──────────────────────────
-            var lblTitlu = new Label
+            // -- Titlu + subtitlu -----------------------------------
+            _lblTitlu = new Label
             {
-                Text      = "Bine ai venit 👋",
-                Font      = Theme.H1,
-                ForeColor = Theme.Text,
+                Text      = "Bine ai venit!",
+                Font      = Design.FontDisplay,
+                ForeColor = Design.Text,
+                BackColor = Color.Transparent,
                 AutoSize  = true,
-                Location  = new Point(pad, y)
+                Location  = new Point(pad, 0)
             };
-            this.Controls.Add(lblTitlu);
+            this.Controls.Add(_lblTitlu);
 
-            var lblSub = new Label
+            _lblSub = new Label
             {
-                Text      = "Situația clubului · actualizat automat",
-                Font      = Theme.Body,
-                ForeColor = Theme.TextMuted,
-                AutoSize  = true,
-                Location  = new Point(pad, y + 34)
+                Text      = "Situația clubului · actualizată automat",
+                Font      = Design.FontSubtitle,
+                ForeColor = Design.TextMuted,
+                BackColor = Color.Transparent,
+                // AutoSize-ul etichetei nu ține cont de scalarea DPI a fontului,
+                // așa că rândul ieșea tăiat pe 125% — dimensiunea se măsoară aici.
+                AutoSize  = false,
+                Location  = new Point(pad, _lblTitlu.Bottom + Design.Sp1)
             };
-            this.Controls.Add(lblSub);
+            var marimeSub = TextRenderer.MeasureText(_lblSub.Text, _lblSub.Font);
+            _lblSub.Size = new Size(marimeSub.Width + Design.Sp1,
+                Math.Max(marimeSub.Height, _lblSub.Font.Height) + Design.Sp2);
+            this.Controls.Add(_lblSub);
 
-            // Selector perioadă (dreapta sus)
-            var periodPanel = new Panel
+            ConstruiesteSelectorPerioada();
+
+            _yKpi = Math.Max(_lblSub.Bottom + Design.Sp4, Design.Sp8 * 2);
+            ConstruiesteGrilaKpi();
+
+            _yGrafice = _yKpi + _kpiH + _gap;
+            ConstruiesteGrafice();
+            ConstruiesteTopOperatori();
+
+            _yAlerte = _yGrafice + _grafH + _gap;
+            ConstruiesteAlerte();
+
+            // -- Linia de status ------------------------------------
+            var lblStatus = new Label
             {
-                Location  = new Point(520, y + 4),
-                Size      = new Size(420, 40),
+                Text      = "",
+                Font      = Design.FontCaptionItalic,
+                ForeColor = Design.TextDim,
+                BackColor = Color.Transparent,
+                AutoSize  = false,
+                Location  = new Point(pad, _yAlerte + _alerteH + Design.Sp3),
+                Size      = new Size(600, 18),
+                Name      = "lblStatus"
+            };
+            this.Controls.Add(lblStatus);
+
+            // Aplica layout-ul responsiv imediat + centrare pentru chart legend
+            this.Load += (s, e) => AplicaLayoutResponsiv();
+        }
+
+        /// <summary>Selectorul „An / Lună" + butonul de reîncărcare (dreapta sus).</summary>
+        private void ConstruiesteSelectorPerioada()
+        {
+            _periodPanel = new Panel
+            {
+                Location  = new Point(Design.Sp4, Design.Sp1),
+                Size      = new Size(430, 40),
                 Anchor    = AnchorStyles.Top | AnchorStyles.Right,
                 BackColor = Color.Transparent
             };
-            _periodPanel = periodPanel;
-            this.Controls.Add(periodPanel);
+            this.Controls.Add(_periodPanel);
 
             var lblAn = new Label
             {
                 Text      = "An:",
-                Font      = Theme.SmallBold,
-                ForeColor = Theme.TextMuted,
+                Font      = Design.FontSmallBold,
+                ForeColor = Design.TextMuted,
+                BackColor = Color.Transparent,
                 AutoSize  = true,
-                Location  = new Point(0, 10)
+                Location  = new Point(0, 12)
             };
-            periodPanel.Controls.Add(lblAn);
+            _periodPanel.Controls.Add(lblAn);
 
             cmbAn = new ComboBox
             {
-                Location      = new Point(28, 6),
-                Size          = new Size(72, 26),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Font          = Theme.Small
+                Font          = Design.FontSubtitle
             };
             cmbAn.SelectedIndexChanged += (s, e) => SchimbaPerioada();
-            periodPanel.Controls.Add(cmbAn);
+            MaterialUIHelper.StyleInput(cmbAn);
+
+            // Pozițiile se calculează din lățimea reală a etichetelor (la 125%
+            // DPI ele cresc, iar pozițiile fixe împingeau butonul peste combo).
+            int xAn = TextRenderer.MeasureText(lblAn.Text, lblAn.Font).Width + Design.Sp1;
+            var cadruAn = IncadreazaCombo(cmbAn, new Point(xAn, 6), new Size(78, 28));
+            _periodPanel.Controls.Add(cadruAn);
 
             var lblLuna = new Label
             {
                 Text      = "Luna:",
-                Font      = Theme.SmallBold,
-                ForeColor = Theme.TextMuted,
+                Font      = Design.FontSmallBold,
+                ForeColor = Design.TextMuted,
+                BackColor = Color.Transparent,
                 AutoSize  = true,
-                Location  = new Point(112, 10)
+                Location  = new Point(cadruAn.Right + Design.Sp3, 12)
             };
-            periodPanel.Controls.Add(lblLuna);
+            _periodPanel.Controls.Add(lblLuna);
 
             cmbLuna = new ComboBox
             {
-                Location      = new Point(152, 6),
-                Size          = new Size(110, 26),
                 DropDownStyle = ComboBoxStyle.DropDownList,
-                Font          = Theme.Small
+                Font          = Design.FontSubtitle
             };
             cmbLuna.Items.Add(ToateLunile);
             for (int i = 1; i <= 12; i++)
                 cmbLuna.Items.Add($"{i:00} {new DateTime(2000, i, 1).ToString("MMM", CulturaRo)}");
             cmbLuna.SelectedIndex = 0;
             cmbLuna.SelectedIndexChanged += (s, e) => SchimbaPerioada();
-            periodPanel.Controls.Add(cmbLuna);
+            MaterialUIHelper.StyleInput(cmbLuna);
+
+            var cadruLuna = IncadreazaCombo(cmbLuna,
+                new Point(lblLuna.Right + Design.Sp1, 6), new Size(118, 28));
+            _periodPanel.Controls.Add(cadruLuna);
 
             var btnRefresh = new ModernButton
             {
+                // FIX BUG-12: era „Reincarca", fără diacritice.
                 Text     = "Reîncarcă",
                 Variant  = ButtonVariant.Primary,
-                Location = new Point(276, 4),
-                Size     = new Size(140, 32)
+                Location = new Point(cadruLuna.Right + Design.Sp3, (40 - Design.ButtonH) / 2),
+                Size     = new Size(140, Design.ButtonH)
             };
             btnRefresh.Click += (s, e) => Reincarca();
-            periodPanel.Controls.Add(btnRefresh);
+            _periodPanel.Controls.Add(btnRefresh);
 
-            y += 76;
+            _periodPanel.Width = btnRefresh.Right;
+        }
 
-            // ── KPI cards (grid 3×2) ───────────────────────────────
-            int cardW = 300, cardH = 110, gap = _gap;
-            int row1 = y;
-            int row2 = y + cardH + gap;
+        /// <summary>
+        /// Încadrează un ComboBox într-un panou care desenează conturul
+        /// <see cref="Design.Border"/> — ComboBox-ul nativ nu acceptă o
+        /// culoare de chenar proprie în tema închisă.
+        /// </summary>
+        private static Panel IncadreazaCombo(ComboBox cmb, Point locatie, Size marime)
+        {
+            var cadru = new Panel
+            {
+                Location  = locatie,
+                Size      = marime,
+                BackColor = Design.SurfaceRaised,
+                Padding   = new Padding(2)
+            };
+            cadru.Paint += (s, e) =>
+            {
+                using (var pen = new Pen(Design.Border, 1f))
+                    e.Graphics.DrawRectangle(pen, 0, 0, cadru.Width - 1, cadru.Height - 1);
+            };
+            cmb.Dock = DockStyle.Fill;
+            cmb.FlatStyle = FlatStyle.Flat;
+            cmb.BackColor = Design.SurfaceRaised;
+            cmb.ForeColor = Design.Text;
+            cadru.Controls.Add(cmb);
+            return cadru;
+        }
 
-            kpiEchipamente = new KpiCard
+        /// <summary>
+        /// Grila de KPI: un singur TableLayoutPanel cu fundal
+        /// <see cref="Design.Border"/>; cardurile sunt separate de „gap"-ul
+        /// de 1px al containerului, nu de chenare proprii.
+        /// </summary>
+        private void ConstruiesteGrilaKpi()
+        {
+            _kpiGrid = new TableLayoutPanel
             {
-                Icon = "\uEC0B", Title = "Echipamente libere",
-                Accent = Theme.Accent, Location = new Point(pad, row1), Size = new Size(cardW, cardH)
+                ColumnCount = 3,
+                RowCount    = 2,
+                BackColor   = Design.Border,
+                Padding     = new Padding(1),
+                Margin      = new Padding(0),
+                GrowStyle   = TableLayoutPanelGrowStyle.FixedSize,
+                Location    = new Point(_pad, _yKpi),
+                Size        = new Size(600, _kpiH)
             };
-            kpiSesiuni = new KpiCard
+            for (int c = 0; c < 3; c++)
+                _kpiGrid.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100f / 3f));
+            for (int r = 0; r < 2; r++)
+                _kpiGrid.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
+
+            kpiEchipamente = new KpiCard { Title = "Echipamente libere" };
+            kpiSesiuni     = new KpiCard { Title = "Sesiuni în așteptare" };
+            kpiRezervari   = new KpiCard { Title = "Rezervări programate" };
+            kpiIncasareLuna  = new KpiCard { Title = "Încasare pe perioadă" };
+            kpiIncasareTotal = new KpiCard { Title = "Încasare totală" };
+            kpiPortofoliu    = new KpiCard { Title = "Valoare portofoliu" };
+
+            var carduri = new[]
             {
-                Icon = "\uE8F5", Title = "Sesiuni în așteptare",
-                Accent = Theme.Warning, Location = new Point(pad + cardW + gap, row1), Size = new Size(cardW, cardH)
-            };
-            kpiRezervari = new KpiCard
-            {
-                Icon = "\uE787", Title = "Rezervări programate",
-                Accent = Theme.Success, Location = new Point(pad + (cardW + gap) * 2, row1), Size = new Size(cardW, cardH)
-            };
-            kpiIncasareLuna = new KpiCard
-            {
-                Icon = "\uE8AF", Title = "Încasare pe perioadă",
-                Accent = Theme.Accent, Location = new Point(pad, row2), Size = new Size(cardW, cardH)
-            };
-            kpiIncasareTotal = new KpiCard
-            {
-                Icon = "\uEC58", Title = "Încasare totală",
-                Accent = Color.FromArgb(0xA7, 0xB6, 0xFF), Location = new Point(pad + cardW + gap, row2), Size = new Size(cardW, cardH)
-            };
-            kpiPortofoliu = new KpiCard
-            {
-                Icon = "\uE9D8", Title = "Valoare portofoliu",
-                Accent = Color.FromArgb(0x6D, 0x8B, 0xFF), Location = new Point(pad + (cardW + gap) * 2, row2), Size = new Size(cardW, cardH)
+                kpiEchipamente, kpiSesiuni, kpiRezervari,
+                kpiIncasareLuna, kpiIncasareTotal, kpiPortofoliu
             };
 
-            this.Controls.Add(kpiEchipamente);
-            this.Controls.Add(kpiSesiuni);
-            this.Controls.Add(kpiRezervari);
-            this.Controls.Add(kpiIncasareLuna);
-            this.Controls.Add(kpiIncasareTotal);
-            this.Controls.Add(kpiPortofoliu);
-
-            y = row2 + cardH + 20;
-            _yGrafice = y;
-
-            // ── Rând 2: grafice + top operatori ───────────────────────
-            var leftCol = new Panel
+            for (int i = 0; i < carduri.Length; i++)
             {
-                Location  = new Point(pad, y),
-                Size      = new Size(640, 300),
-                BackColor = Theme.Surface,
+                int col = i % 3;
+                int row = i / 3;
+                var card = carduri[i];
+                card.Dock = DockStyle.Fill;
+                // Margin 0 pe ultima coloană/ultimul rând, altfel „gap"-ul de
+                // 1px ar fi dublat pe muchia exterioară a containerului.
+                card.Margin = new Padding(
+                    0, 0,
+                    col == 2 ? 0 : 1,
+                    row == 1 ? 0 : 1);
+                _kpiGrid.Controls.Add(card, col, row);
+            }
+
+            this.Controls.Add(_kpiGrid);
+        }
+
+        /// <summary>Coloana din stânga: graficele (în tab-uri).</summary>
+        private void ConstruiesteGrafice()
+        {
+            _leftCol = new Panel
+            {
+                Location  = new Point(_pad, _yGrafice),
+                Size      = new Size(640, _grafH),
+                BackColor = Design.Surface,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Left
             };
-            _leftCol = leftCol;
-            this.Controls.Add(leftCol);
+            _leftCol.Paint += (s, e) =>
+                Design.PaintCard(e.Graphics,
+                    new Rectangle(0, 0, _leftCol.Width - 1, _leftCol.Height - 1), Design.Radius);
+            this.Controls.Add(_leftCol);
 
-            CreeazaGrafice(leftCol);
-
-            // Top 3 operatori (dreapta)
-            var rightCol = new Panel
+            // Graficele nu trebuie sa blocheze tot dashboard-ul: daca
+            // controlul Chart nu se poate crea (ex. assembly lipsa),
+            // afisam un mesaj in locul graficelor si restul merge.
+            try
             {
-                Location  = new Point(660, y),
-                Size      = new Size(340, 300),
-                BackColor = Theme.Surface,
+                CreeazaGrafice(_leftCol);
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Error(ex, "PanouDashboard.CreeazaGrafice");
+                var lblFaraGrafice = new Label
+                {
+                    Text = "Grafice indisponibile: " + ex.Message,
+                    Font = _fMesaj,
+                    ForeColor = Design.Danger,
+                    BackColor = Color.Transparent,
+                    Dock = DockStyle.Fill,
+                    TextAlign = ContentAlignment.MiddleCenter
+                };
+                _leftCol.Controls.Add(lblFaraGrafice);
+            }
+        }
+
+        /// <summary>Coloana din dreapta: top 3 operatori după încasare.</summary>
+        private void ConstruiesteTopOperatori()
+        {
+            _rightCol = new Panel
+            {
+                Location  = new Point(660, _yGrafice),
+                Size      = new Size(340, _grafH),
+                BackColor = Design.Surface,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Right
             };
-            _rightCol = rightCol;
-            Theme.Rounded(rightCol, Theme.Radius);
-            rightCol.Paint += (s, e) =>
-            {
-                using (var pen = new Pen(Theme.Border, 1f))
-                {
-                    var rect = new Rectangle(0, 0, rightCol.Width - 1, rightCol.Height - 1);
-                    e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
-                    {
-                        path.AddArc(rect.X, rect.Y, 20, 20, 180, 90);
-                        path.AddArc(rect.Right - 20, rect.Y, 20, 20, 270, 90);
-                        path.AddArc(rect.Right - 20, rect.Bottom - 20, 20, 20, 0, 90);
-                        path.AddArc(rect.X, rect.Bottom - 20, 20, 20, 90, 90);
-                        path.CloseFigure();
-                        e.Graphics.DrawPath(pen, path);
-                    }
-                }
-            };
-            this.Controls.Add(rightCol);
+            _rightCol.Paint += (s, e) =>
+                Design.PaintCard(e.Graphics,
+                    new Rectangle(0, 0, _rightCol.Width - 1, _rightCol.Height - 1), Design.Radius);
+            this.Controls.Add(_rightCol);
 
             var lblTop = new Label
             {
-                Text      = "🏆 TOP 3 OPERATORI",
-                Font      = Theme.H3,
-                ForeColor = Theme.Text,
+                Text      = "TOP 3 OPERATORI",
+                Font      = _fSectiune,
+                ForeColor = Design.TextDim,
+                BackColor = Color.Transparent,
                 AutoSize  = true,
-                Location  = new Point(18, 16)
+                Location  = new Point(Design.Sp5, Design.Sp4)
             };
-            rightCol.Controls.Add(lblTop);
+            _rightCol.Controls.Add(lblTop);
 
             var lblTopSub = new Label
             {
                 Text      = "după încasarea totală",
-                Font      = Theme.Caption,
-                ForeColor = Theme.TextMuted,
+                Font      = Design.FontCaption,
+                ForeColor = Design.TextDim,
+                BackColor = Color.Transparent,
                 AutoSize  = true,
-                Location  = new Point(18, 42)
+                Location  = new Point(Design.Sp5, lblTop.Bottom + Design.Sp1)
             };
-            rightCol.Controls.Add(lblTopSub);
+            _rightCol.Controls.Add(lblTopSub);
 
             for (int i = 0; i < 3; i++)
             {
-                int ry = 78 + i * 60;
+                int ry = 72 + i * 64;
 
-                var rank = new Label
+                lblOperatorRank[i] = new Label
                 {
                     Text      = (i + 1).ToString(),
-                    Font      = Theme.SmallBold,
-                    ForeColor = i == 0 ? Color.White
-                             : (i == 1 ? MaterialTheme.PrimaryLight : MaterialTheme.TextPrimary),
-                    BackColor = i == 0 ? Theme.Accent :
-                               (i == 1 ? Theme.AccentSoft :
-                               MaterialTheme.SurfaceAlt),
-                    Location  = new Point(18, ry),
-                    Size      = new Size(28, 28),
-                    TextAlign = ContentAlignment.MiddleCenter
+                    Font      = _fRank,
+                    ForeColor = Design.TextDim,
+                    BackColor = Color.Transparent,
+                    AutoSize  = false,
+                    Location  = new Point(Design.Sp5, ry + 2),
+                    Size      = new Size(22, 20),
+                    TextAlign = ContentAlignment.MiddleLeft
                 };
-                Theme.Rounded(rank, 8);
-                rightCol.Controls.Add(rank);
+                _rightCol.Controls.Add(lblOperatorRank[i]);
 
                 lblOperatorNume[i] = new Label
                 {
                     Text      = "-",
-                    Font      = Theme.BodyBold,
-                    ForeColor = Theme.Text,
+                    Font      = _fOperNume,
+                    ForeColor = Design.Text,
+                    BackColor = Color.Transparent,
                     AutoSize  = false,
-                    Location  = new Point(58, ry + 2),
-                    Size      = new Size(180, 20)
+                    Location  = new Point(46, ry),
+                    Size      = new Size(220, 20)
                 };
-                rightCol.Controls.Add(lblOperatorNume[i]);
+                _rightCol.Controls.Add(lblOperatorNume[i]);
 
                 lblOperatorIncasare[i] = new Label
                 {
                     Text      = "-",
-                    Font      = Theme.SmallBold,
-                    ForeColor = Theme.Success,
+                    Font      = _fOperSuma,
+                    ForeColor = Design.TextMuted,
+                    BackColor = Color.Transparent,
                     AutoSize  = false,
-                    Location  = new Point(58, ry + 22),
+                    Location  = new Point(46, ry + 21),
                     Size      = new Size(260, 18)
                 };
-                rightCol.Controls.Add(lblOperatorIncasare[i]);
+                _rightCol.Controls.Add(lblOperatorIncasare[i]);
             }
 
-            y += 320;
-            _yAlerte = y;
-
-            // ── Alerte ─────────────────────────────────────────────
-            var alertCard = new Panel
+            // Locul 1: doar un punct de 4px în accent, lipit de nume.
+            _punctLoc1 = new RoundLabel
             {
-                Location  = new Point(pad, y),
-                Size      = new Size(1000, 200),
-                BackColor = Theme.Surface,
+                Text         = "",
+                BackColor    = Design.Accent,
+                CornerRadius = 2,
+                Size         = new Size(4, 4),
+                Visible      = false
+            };
+            // Adăugat ultimul: etichetele au fundal „transparent" și ar
+            // picta peste punct dacă acesta ar rămâne în spatele lor.
+            _rightCol.Controls.Add(_punctLoc1);
+            _punctLoc1.BringToFront();
+        }
+
+        /// <summary>Lista compactă de alerte operaționale.</summary>
+        private void ConstruiesteAlerte()
+        {
+            _alertCard = new Panel
+            {
+                Location  = new Point(_pad, _yAlerte),
+                Size      = new Size(1000, _alerteH),
+                BackColor = Design.Surface,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
-            _alertCard = alertCard;
-            Theme.Rounded(alertCard, Theme.Radius);
-            alertCard.Paint += (s, e) =>
-            {
-                using (var pen = new Pen(Theme.Border, 1f))
-                {
-                    var rect = new Rectangle(0, 0, alertCard.Width - 1, alertCard.Height - 1);
-                    e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-                    using (var path = new System.Drawing.Drawing2D.GraphicsPath())
-                    {
-                        path.AddArc(rect.X, rect.Y, 20, 20, 180, 90);
-                        path.AddArc(rect.Right - 20, rect.Y, 20, 20, 270, 90);
-                        path.AddArc(rect.Right - 20, rect.Bottom - 20, 20, 20, 0, 90);
-                        path.AddArc(rect.X, rect.Bottom - 20, 20, 20, 90, 90);
-                        path.CloseFigure();
-                        e.Graphics.DrawPath(pen, path);
-                    }
-                }
-            };
-            this.Controls.Add(alertCard);
+            _alertCard.Paint += (s, e) =>
+                Design.PaintCard(e.Graphics,
+                    new Rectangle(0, 0, _alertCard.Width - 1, _alertCard.Height - 1), Design.Radius);
+            this.Controls.Add(_alertCard);
 
             var lblAlerte = new Label
             {
-                Text      = "⚠️ ALERTE OPERAȚIONALE",
-                Font      = Theme.H3,
-                ForeColor = Theme.Text,
+                Text      = "ALERTE OPERAȚIONALE",
+                Font      = _fSectiune,
+                ForeColor = Design.TextDim,
+                BackColor = Color.Transparent,
                 AutoSize  = true,
-                Location  = new Point(18, 16)
+                Location  = new Point(Design.Sp5, Design.Sp4)
             };
-            alertCard.Controls.Add(lblAlerte);
+            _alertCard.Controls.Add(lblAlerte);
 
             lblRezumatAlerte = new Label
             {
                 Text      = "",
-                Font      = Theme.SmallBold,
-                ForeColor = Theme.Success,
+                Font      = Design.FontSmallBold,
+                ForeColor = Design.TextMuted,
+                BackColor = Color.Transparent,
                 AutoSize  = true,
-                Location  = new Point(alertCard.Width - 220, 18),
+                Location  = new Point(_alertCard.Width - 220, 17),
                 TextAlign = ContentAlignment.MiddleRight,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Right
             };
-            lblRezumatAlerte.AutoSize = true;
-            alertCard.Controls.Add(lblRezumatAlerte);
+            _alertCard.Controls.Add(lblRezumatAlerte);
 
-            var btnArataTot = new ModernButton
+            // „Arată tot →" ca link discret (nu buton plin).
+            _lnkArataTot = new LinkLabel
             {
-                Text     = "Arată tot",
-                Variant  = ButtonVariant.Success,
-                Location = new Point(alertCard.Width - 96, 14),
-                Size     = new Size(80, 28),
-                Anchor   = AnchorStyles.Top | AnchorStyles.Right
+                Text            = "Arată tot →",
+                Font            = Design.FontSmall,
+                LinkColor       = Design.TextMuted,
+                ActiveLinkColor = Design.AccentHover,
+                VisitedLinkColor = Design.TextMuted,
+                LinkBehavior    = LinkBehavior.NeverUnderline,
+                BackColor       = Color.Transparent,
+                AutoSize        = true,
+                Location        = new Point(_alertCard.Width - 100, 16),
+                Anchor          = AnchorStyles.Top | AnchorStyles.Right,
+                Cursor          = Cursors.Hand
             };
-            _btnArataTot = btnArataTot;
-            alertCard.Controls.Add(btnArataTot);
+            _alertCard.Controls.Add(_lnkArataTot);
 
             var meniuArataTot = new ContextMenuStrip();
-            meniuArataTot.Items.Add("Echipamente — lista completă", null,
+            meniuArataTot.Items.Add("Echipamente → lista completă", null,
                 (s, e) => AlertaDoubleClick?.Invoke(0, true));
-            meniuArataTot.Items.Add("Rezervări — lista completă", null,
+            meniuArataTot.Items.Add("Rezervări → lista completă", null,
                 (s, e) => AlertaDoubleClick?.Invoke(1, true));
-            meniuArataTot.Items.Add("Sesiuni — lista completă", null,
+            meniuArataTot.Items.Add("Sesiuni → lista completă", null,
                 (s, e) => AlertaDoubleClick?.Invoke(2, true));
-            btnArataTot.Click += (s, e) =>
-                meniuArataTot.Show(btnArataTot, new Point(0, btnArataTot.Height));
+            _lnkArataTot.LinkClicked += (s, e) =>
+                meniuArataTot.Show(_lnkArataTot, new Point(0, _lnkArataTot.Height));
 
             for (int i = 0; i < 3; i++)
             {
-                int ay = 60 + i * 42;
+                int ay = 62 + i * 40;
 
-                lblAlertaBadge[i] = new Label
+                // Punct de 6px rotunjit — înlocuiește badge-ul colorat 28×28.
+                punctAlerta[i] = new RoundLabel
                 {
-                    Text      = "0",
-                    Font      = Theme.SmallBold,
-                    ForeColor = Color.White,
-                    BackColor = Theme.Success,
-                    Location  = new Point(18, ay),
-                    Size      = new Size(28, 28),
-                    TextAlign = ContentAlignment.MiddleCenter,
-                    Cursor    = Cursors.Hand
+                    Text         = "",
+                    BackColor    = Design.SuccessBright,
+                    CornerRadius = 3,
+                    Location     = new Point(Design.Sp5 + 1, ay + 7),
+                    Size         = new Size(6, 6),
+                    Cursor       = Cursors.Hand
                 };
-                Theme.Rounded(lblAlertaBadge[i], 8);
-                lblAlertaBadge[i].DoubleClick += (s, e) => RidicaAlerta(i);
-                alertCard.Controls.Add(lblAlertaBadge[i]);
+                punctAlerta[i].DoubleClick += (s, e) => RidicaAlerta(i);
+                _alertCard.Controls.Add(punctAlerta[i]);
 
                 lblAlertaText[i] = new Label
                 {
                     Text      = "",
-                    Font      = fontAlertaInactiva,
-                    ForeColor = Theme.TextMuted,
+                    Font      = _fAlerta,
+                    ForeColor = Design.TextDim,
+                    BackColor = Color.Transparent,
                     AutoSize  = false,
-                    Location  = new Point(58, ay + 3),
-                    Size      = new Size(600, 22),
+                    Location  = new Point(Design.Sp5 + 18, ay),
+                    Size      = new Size(600, 20),
                     Cursor    = Cursors.Hand
                 };
                 lblAlertaText[i].DoubleClick += (s, e) => RidicaAlerta(i);
-                alertCard.Controls.Add(lblAlertaText[i]);
+                _alertCard.Controls.Add(lblAlertaText[i]);
 
                 lblAlertaDetaliu[i] = new Label
                 {
                     Text      = "",
-                    Font      = Theme.CaptionItalic,
-                    ForeColor = Theme.TextDim,
+                    Font      = _fAlertaDetaliu,
+                    ForeColor = Design.TextDim,
+                    BackColor = Color.Transparent,
                     AutoSize  = false,
-                    Location  = new Point(alertCard.Width - 260, ay + 5),
-                    Size      = new Size(240, 18),
+                    Location  = new Point(_alertCard.Width - 240, ay + 2),
+                    Size      = new Size(224, 18),
                     TextAlign = ContentAlignment.MiddleRight,
                     Anchor    = AnchorStyles.Top | AnchorStyles.Right,
                     Cursor    = Cursors.Hand
                 };
                 lblAlertaDetaliu[i].DoubleClick += (s, e) => RidicaAlerta(i);
-                alertCard.Controls.Add(lblAlertaDetaliu[i]);
+                _alertCard.Controls.Add(lblAlertaDetaliu[i]);
             }
-
-            y += 220;
-
-            // ── Linia de status ────────────────────────────────────
-            var lblStatus = new Label
-            {
-                Text      = "",
-                Font      = Theme.CaptionItalic,
-                ForeColor = Theme.TextDim,
-                AutoSize  = false,
-                Location  = new Point(pad, y),
-                Size      = new Size(600, 18),
-                Name      = "lblStatus"
-            };
-            this.Controls.Add(lblStatus);
-
-            // Aplică layout-ul responsiv imediat + centrare pentru chart legend
-            this.Load += (s, e) => AplicaLayoutResponsiv();
         }
 
         private void CreeazaGrafice(Control parent)
         {
-            tabGrafice = new TabControl
+            // Bară de tab-uri plată (TabControl-ul nativ își desenează banda
+            // cu culorile temei Windows și rupe tema închisă).
+            var tabs = new FlatTabs();
+
+            chartIncasareLunar = CreeazaChartIncasareLunar();
+            chartTipuriEchipamente = CreeazaChartTipuri();
+            chartOperatoriSesiuni = CreeazaChartOperatori();
+
+            var paginaIncasare = new Panel { Dock = DockStyle.Fill, BackColor = Design.Surface };
+            paginaIncasare.Controls.Add(chartIncasareLunar);
+            paginaIncasare.Controls.Add(CreeazaAntetIncasare());
+
+            var paginaTipuri = new Panel { Dock = DockStyle.Fill, BackColor = Design.Surface };
+            paginaTipuri.Controls.Add(chartTipuriEchipamente);
+
+            var paginaOperatori = new Panel { Dock = DockStyle.Fill, BackColor = Design.Surface };
+            paginaOperatori.Controls.Add(chartOperatoriSesiuni);
+
+            var pagini = new Control[] { paginaIncasare, paginaTipuri, paginaOperatori };
+            for (int i = 0; i < pagini.Length; i++)
+                pagini[i].Visible = i == 0;
+
+            var continut = new Panel
             {
-                Dock      = DockStyle.Fill,
-                Font      = Theme.SmallBold,
-                Padding   = new Point(14, 6)
+                Dock = DockStyle.Fill,
+                BackColor = Design.Surface,
+                Padding = new Padding(Design.Sp3, Design.Sp2, Design.Sp3, Design.Sp3)
+            };
+            // Ordinea de adăugare contează pentru Dock: ultimul adăugat este
+            // așezat primul, deci bara de tab-uri își ia banda de sus.
+            continut.Controls.Add(paginaOperatori);
+            continut.Controls.Add(paginaTipuri);
+            continut.Controls.Add(paginaIncasare);
+            parent.Controls.Add(continut);
+
+            tabs.Add("Încasare 6 luni");
+            tabs.Add("Tipuri echipamente");
+            tabs.Add("Top operatori");
+            tabs.SelectedIndexChanged += (s, e) =>
+            {
+                for (int i = 0; i < pagini.Length; i++)
+                    pagini[i].Visible = i == tabs.SelectedIndex;
+            };
+            parent.Controls.Add(tabs);
+        }
+
+        /// <summary>
+        /// Antetul graficului de încasări: titlu + rezumat pe o linie proprie,
+        /// legenda aliniată la dreapta. Înainte textul era <see cref="Chart.Title"/>;
+        /// la 125% DPI se rupea pe două linii și intra peste zona graficului.
+        /// </summary>
+        private Panel CreeazaAntetIncasare()
+        {
+            var antet = new Panel
+            {
+                Dock      = DockStyle.Top,
+                Height    = 42,
+                BackColor = Design.Surface
             };
 
-            var tabIncasare = new TabPage("Incasare 6 luni")
-            { BackColor = Theme.Surface, Padding = new Padding(4) };
-            chartIncasareLunar = CreeazaChartIncasareLunar();
-            tabIncasare.Controls.Add(chartIncasareLunar);
-            tabGrafice.TabPages.Add(tabIncasare);
+            _lblTitluIncasare = new Label
+            {
+                Text      = "",
+                Font      = _fTitluGrafic,
+                ForeColor = Design.TextMuted,
+                BackColor = Color.Transparent,
+                AutoSize  = true,
+                Location  = new Point(0, 0)
+            };
+            antet.Controls.Add(_lblTitluIncasare);
 
-            var tabTipuri = new TabPage("Tipuri echipamente")
-            { BackColor = Theme.Surface, Padding = new Padding(4) };
-            chartTipuriEchipamente = CreeazaChartTipuri();
-            tabTipuri.Controls.Add(chartTipuriEchipamente);
-            tabGrafice.TabPages.Add(tabTipuri);
+            _lblRezumatIncasare = new Label
+            {
+                Text      = "",
+                Font      = _fAxa,
+                ForeColor = Design.TextDim,
+                BackColor = Color.Transparent,
+                AutoSize  = true,
+                Location  = new Point(0, 20)
+            };
+            antet.Controls.Add(_lblRezumatIncasare);
 
-            var tabOperatori = new TabPage("Top operatori")
-            { BackColor = Theme.Surface, Padding = new Padding(4) };
-            chartOperatoriSesiuni = CreeazaChartOperatori();
-            tabOperatori.Controls.Add(chartOperatoriSesiuni);
-            tabGrafice.TabPages.Add(tabOperatori);
+            var legenda = CreeazaLegendaGrafic();
+            legenda.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            antet.Controls.Add(legenda);
+            EventHandler aseazaLegenda = (s, e) =>
+                legenda.Location = new Point(antet.Width - legenda.Width, 1);
+            antet.Resize += aseazaLegenda;
+            antet.HandleCreated += aseazaLegenda;
 
-            parent.Controls.Add(tabGrafice);
+            return antet;
+        }
+
+        /// <summary>Legendă proprie (Chart nu permite colorarea textului ei).</summary>
+        private Control CreeazaLegendaGrafic()
+        {
+            var legenda = new FlowLayoutPanel
+            {
+                AutoSize      = true,
+                AutoSizeMode  = AutoSizeMode.GrowAndShrink,
+                FlowDirection = FlowDirection.RightToLeft,
+                WrapContents  = false,
+                BackColor     = Color.Transparent
+            };
+            legenda.Controls.Add(CreeazaElementLegenda("●  Nr. sesiuni", Design.Warning));
+            legenda.Controls.Add(CreeazaElementLegenda("■  Încasare (EUR)", Design.Accent));
+            return legenda;
+        }
+
+        private static Label CreeazaElementLegenda(string text, Color culoare)
+        {
+            return new Label
+            {
+                Text      = text,
+                Font      = Design.FontSmall,
+                ForeColor = culoare,
+                BackColor = Color.Transparent,
+                AutoSize  = true,
+                Margin    = new Padding(Design.Sp4, 2, 0, 0)
+            };
         }
 
         private Chart CreeazaChartIncasareLunar()
@@ -622,35 +810,35 @@ namespace AppClubCalculatoare
             var chart = new Chart
             {
                 Dock = DockStyle.Fill,
-                BackColor = Theme.Surface,
+                BackColor = Design.Surface,
                 AntiAliasing = AntiAliasingStyles.All,
                 TextAntiAliasingQuality = TextAntiAliasingQuality.High
             };
 
-            var area = new ChartArea("main") { BackColor = Theme.Surface };
+            var area = new ChartArea("main") { BackColor = Design.Surface };
             area.AxisX.MajorGrid.Enabled = false;
-            area.AxisX.LabelStyle.Font = fontAxa;
-            area.AxisX.LabelStyle.ForeColor = Theme.TextMuted;
-            area.AxisX.LineColor = Theme.Border;
-            area.AxisX.MajorTickMark.LineColor = Theme.Border;
+            area.AxisX.LabelStyle.Font = _fAxa;
+            area.AxisX.LabelStyle.ForeColor = Design.TextDim;
+            area.AxisX.LineColor = Design.Divider;
+            area.AxisX.MajorTickMark.LineColor = Design.Divider;
 
-            area.AxisY.MajorGrid.LineColor = Theme.Border;
+            area.AxisY.MajorGrid.LineColor = Design.Divider;
             area.AxisY.MajorGrid.LineDashStyle = ChartDashStyle.Dot;
-            area.AxisY.LabelStyle.Font = fontAxa;
-            area.AxisY.LabelStyle.ForeColor = Theme.Accent;
+            area.AxisY.LabelStyle.Font = _fAxa;
+            area.AxisY.LabelStyle.ForeColor = Design.TextDim;
             area.AxisY.LabelStyle.Format = "#,##0";
-            area.AxisY.LineColor = Theme.Border;
+            area.AxisY.LineColor = Design.Divider;
             area.AxisY.Title = "EUR";
-            area.AxisY.TitleFont = fontAxaBold;
-            area.AxisY.TitleForeColor = Theme.Accent;
+            area.AxisY.TitleFont = _fAxaBold;
+            area.AxisY.TitleForeColor = Design.TextDim;
 
             area.AxisY2.MajorGrid.Enabled = false;
-            area.AxisY2.LabelStyle.Font = fontAxa;
-            area.AxisY2.LabelStyle.ForeColor = Theme.Warning;
-            area.AxisY2.LineColor = Theme.Border;
+            area.AxisY2.LabelStyle.Font = _fAxa;
+            area.AxisY2.LabelStyle.ForeColor = Design.TextDim;
+            area.AxisY2.LineColor = Design.Divider;
             area.AxisY2.Title = "Nr. sesiuni";
-            area.AxisY2.TitleFont = fontAxaBold;
-            area.AxisY2.TitleForeColor = Theme.Warning;
+            area.AxisY2.TitleFont = _fAxaBold;
+            area.AxisY2.TitleForeColor = Design.TextDim;
 
             chart.ChartAreas.Add(area);
 
@@ -658,10 +846,10 @@ namespace AppClubCalculatoare
             {
                 ChartType = SeriesChartType.Column,
                 ChartArea = "main",
-                Color = Theme.Accent,
-                BorderColor = Theme.AccentHover,
-                BorderWidth = 1,
-                ToolTip = "#VALX\nIncasare: #VALY{N0} EUR"
+                Color = Design.Accent,
+                BorderColor = Design.Accent,
+                BorderWidth = 0,
+                ToolTip = "#VALX\nÎncasare: #VALY{N0} EUR"
             };
             sIncasare["PointWidth"] = "0.55";
             chart.Series.Add(sIncasare);
@@ -670,28 +858,17 @@ namespace AppClubCalculatoare
             {
                 ChartType = SeriesChartType.Line,
                 ChartArea = "main",
-                Color = Theme.Warning,
-                BorderWidth = 3,
+                Color = Design.Warning,
+                BorderWidth = 2,
                 MarkerStyle = MarkerStyle.Circle,
-                MarkerSize = 9,
-                MarkerColor = Theme.Warning,
-                MarkerBorderColor = Color.White,
+                MarkerSize = 7,
+                MarkerColor = Design.Warning,
+                MarkerBorderColor = Design.Surface,
                 MarkerBorderWidth = 2,
                 YAxisType = AxisType.Secondary,
                 ToolTip = "#VALX\nSesiuni: #VALY"
             };
             chart.Series.Add(sSesiuni);
-
-            var legenda = new Legend("leg")
-            {
-                Docking = Docking.Top,
-                Alignment = StringAlignment.Far,
-                Font = fontLegend,
-                BackColor = Color.Transparent,
-                IsTextAutoFit = true,
-                LegendStyle = LegendStyle.Row
-            };
-            chart.Legends.Add(legenda);
 
             return chart;
         }
@@ -701,12 +878,12 @@ namespace AppClubCalculatoare
             var chart = new Chart
             {
                 Dock = DockStyle.Fill,
-                BackColor = Theme.Surface,
+                BackColor = Design.Surface,
                 AntiAliasing = AntiAliasingStyles.All,
                 TextAntiAliasingQuality = TextAntiAliasingQuality.High
             };
 
-            var area = new ChartArea("pie") { BackColor = Theme.Surface };
+            var area = new ChartArea("pie") { BackColor = Design.Surface };
             area.Position.Auto = false;
             area.Position.X = 2;
             area.Position.Y = 4;
@@ -719,9 +896,9 @@ namespace AppClubCalculatoare
                 ChartType = SeriesChartType.Doughnut,
                 ChartArea = "pie",
                 ToolTip = "#VALX\n#VALY echipamente (#PERCENT{P0})",
-                Font = fontAxa,
+                Font = _fAxa,
                 Label = "#PERCENT{P0}",
-                LabelForeColor = Theme.TextMuted
+                LabelForeColor = Design.TextMuted
             };
             s["DoughnutRadius"] = "52";
             s["PieLabelStyle"] = "Outside";
@@ -732,8 +909,9 @@ namespace AppClubCalculatoare
             {
                 Docking = Docking.Right,
                 Alignment = StringAlignment.Center,
-                Font = fontLegend,
+                Font = _fLegenda,
                 BackColor = Color.Transparent,
+                ForeColor = Design.TextMuted,
                 IsTextAutoFit = true
             };
             chart.Legends.Add(legenda);
@@ -746,26 +924,28 @@ namespace AppClubCalculatoare
             var chart = new Chart
             {
                 Dock = DockStyle.Fill,
-                BackColor = Theme.Surface,
+                BackColor = Design.Surface,
                 AntiAliasing = AntiAliasingStyles.All,
                 TextAntiAliasingQuality = TextAntiAliasingQuality.High
             };
 
-            var area = new ChartArea("bar") { BackColor = Theme.Surface };
-            area.AxisX.MajorGrid.LineColor = Theme.Border;
-            area.AxisX.MajorGrid.LineDashStyle = ChartDashStyle.Dot;
-            area.AxisX.LabelStyle.Font = fontAxa;
-            area.AxisX.LabelStyle.ForeColor = Theme.TextMuted;
-            area.AxisX.LabelStyle.Format = "#,##0";
-            area.AxisX.Title = "Incasare total (EUR)";
-            area.AxisX.TitleFont = fontAxaBold;
-            area.AxisX.TitleForeColor = Theme.Accent;
+            var area = new ChartArea("bar") { BackColor = Design.Surface };
 
-            area.AxisY.MajorGrid.Enabled = false;
-            area.AxisY.LabelStyle.Font = fontAxa;
-            area.AxisY.LabelStyle.ForeColor = Theme.TextMuted;
-            area.AxisY.IsReversed = true;
-            area.AxisY.Interval = 1;
+            // Bară orizontală: AxisX = categoriile (numele), AxisY = valorile.
+            // Categoriile se adaugă crescător, ca locul 1 să iasă sus fără să
+            // inversăm axa (inversarea muta etichetele valorilor deasupra).
+            area.AxisX.MajorGrid.Enabled = false;
+            area.AxisX.LabelStyle.Font = _fAxa;
+            area.AxisX.LabelStyle.ForeColor = Design.TextDim;
+
+            area.AxisY.MajorGrid.LineColor = Design.Divider;
+            area.AxisY.MajorGrid.LineDashStyle = ChartDashStyle.Dot;
+            area.AxisY.LabelStyle.Font = _fAxa;
+            area.AxisY.LabelStyle.ForeColor = Design.TextDim;
+            area.AxisY.LabelStyle.Format = "#,##0";
+            area.AxisY.Title = "Încasare totală (EUR)";
+            area.AxisY.TitleFont = _fAxaBold;
+            area.AxisY.TitleForeColor = Design.TextDim;
 
             chart.ChartAreas.Add(area);
 
@@ -773,14 +953,14 @@ namespace AppClubCalculatoare
             {
                 ChartType = SeriesChartType.Bar,
                 ChartArea = "bar",
-                Color = Theme.Accent,
-                BorderColor = Theme.AccentHover,
-                BorderWidth = 1,
-                ToolTip = "#VALX\nIncasare: #VALY{N0} EUR",
+                Color = Design.Accent,
+                BorderColor = Design.Accent,
+                BorderWidth = 0,
+                ToolTip = "#VALX\nÎncasare: #VALY{N0} EUR",
                 IsValueShownAsLabel = true,
                 LabelFormat = "{0:N0}",
-                Font = fontAxa,
-                LabelForeColor = Theme.TextMuted
+                Font = _fAxa,
+                LabelForeColor = Design.TextMuted
             };
             s["PointWidth"] = "0.6";
             chart.Series.Add(s);
@@ -788,125 +968,394 @@ namespace AppClubCalculatoare
             return chart;
         }
 
-        // ════════════════════════════════════════════════════════════
-        //  REÎNCĂRCARE DATE
-        // ════════════════════════════════════════════════════════════
-        public void Reincarca()
-        {
-            try
-            {
-                using (var conn = new SqlConnection(connectionString))
-                {
-                    conn.Open();
-
-                    IncarcaListaAni(conn);
-                    RezolvaSelectiaAn(conn);
-
-                    if (_primaIncarcare)
-                    {
-                        SelecteazaUltimaPerioadaCuActivitate(conn);
-                        _primaIncarcare = false;
-                    }
-
-                    decimal echipamente = Scalar(conn,
-                        "SELECT COUNT(*) FROM Echipamente WHERE status = 'Liber'");
-                    decimal sesiuni = Scalar(conn,
-                        "SELECT COUNT(*) FROM Sesiuni WHERE status = 'În așteptare'");
-                    decimal rezervari = Scalar(conn,
-                        "SELECT COUNT(*) FROM Rezervari WHERE status = 'Programata'");
-
-                    decimal incasareTotal = Scalar(conn,
-                        "SELECT ISNULL(SUM(incasare), 0) FROM Sesiuni");
-                    decimal portofoliu = Scalar(conn,
-                        // Valoare portofoliu = Σ tarif/oră al echipamentelor libere
-                        // (venitul orar potențial al stațiilor disponibile).
-                        "SELECT ISNULL(SUM(tarif_ora), 0) FROM Echipamente WHERE status = 'Liber'");
-
-                    decimal totalEchipamente = Scalar(conn, "SELECT COUNT(*) FROM Echipamente");
-                    decimal totalSesiuni = Scalar(conn, "SELECT COUNT(*) FROM Sesiuni");
-
-                    kpiEchipamente.Value = echipamente.ToString("N0");
-                    kpiEchipamente.Subtitle = $"din {totalEchipamente:N0} înregistrate";
-
-                    kpiSesiuni.Value = sesiuni.ToString("N0");
-                    kpiSesiuni.Subtitle = $"din {totalSesiuni:N0} sesiuni";
-
-                    kpiRezervari.Value = rezervari.ToString("N0");
-                    kpiRezervari.Subtitle = "cu status 'Programata'";
-
-                    IncarcaIncasarePerioada(conn);
-
-                    kpiIncasareTotal.Value = incasareTotal.ToString("N0");
-                    kpiIncasareTotal.Unit = "EUR";
-                    kpiIncasareTotal.Subtitle = "toată perioada";
-
-                    kpiPortofoliu.Value = portofoliu.ToString("N0");
-                    kpiPortofoliu.Unit = "EUR";
-                    kpiPortofoliu.Subtitle = "Σ tarif/oră · echipamente libere";
-
-                    IncarcaTopOperatori(conn);
-                    IncarcaIncasareLunar(conn);
-                    IncarcaTipuriEchipamente(conn);
-                    IncarcaTopOperatoriGrafic(conn);
-                    IncarcaAlerte(conn);
-
-                    var lblStatus = this.Controls.Find("lblStatus", true);
-                    if (lblStatus.Length > 0)
-                    {
-                        var lbl = (Label)lblStatus[0];
-                        lbl.ForeColor = Theme.TextDim;
-                        lbl.Text = $"Actualizat la {DateTime.Now:dd.MM.yyyy HH:mm}";
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                AppLogger.Error(ex, "PanouDashboard.Reincarca");
-                var lblStatus = this.Controls.Find("lblStatus", true);
-                if (lblStatus.Length > 0)
-                {
-                    var lbl = (Label)lblStatus[0];
-                    lbl.ForeColor = Theme.Danger;
-                    lbl.Text = "Indicatori indisponibili: " + ex.Message;
-                }
-            }
-        }
-
-        // ════════════════════════════════════════════════════════════
-        //  ÎNCĂRCARE ASINCRONĂ CU INDICATOR (§4.4)
-        //  Afișează un indicator înainte de a încărca datele, astfel încât
-        //  fereastra să nu pară „blocată”. Reincarca() atinge controale UI
-        //  (carduri KPI, chart-uri, combo-uri, etichete), deci rulează pe
-        //  thread-ul UI — amânarea de mai jos doar permite message loop-ului
-        //  să picteze indicatorul ÎNAINTE de interogările SQL (pe SQL local
-        //  acestea sunt sub 100 ms, iar pe rețea eroarea rămâne tratată).
-        // ════════════════════════════════════════════════════════════
+        // ============================================================
+        //  REINCARCARE DATE
+        // ============================================================
+        private CancellationTokenSource _ctsIncarcare;
         private Panel _overlayIncarcare;
 
-        private async void IncarcaAsincron()
+        /// <summary>
+        /// Reîncarcă tabloul de bord asincron (selectoarele curente).
+        /// Poate fi apelat și după închiderea unui dialog CRUD.
+        /// </summary>
+        public void Reincarca()
         {
+            _ = IncarcaAsincronAsync(autoPerioada: false);
+        }
+
+        private async Task IncarcaAsincronAsync(bool autoPerioada)
+        {
+            if (IsDisposed) return;
+
+            _ctsIncarcare?.Cancel();
+            _ctsIncarcare?.Dispose();
+            var cts = new CancellationTokenSource();
+            _ctsIncarcare = cts;
+            CancellationToken ct = cts.Token;
+
             ArataIncarcare(true);
-            await Task.Delay(80);   // lasă message loop-ul să picteze indicatorul
             try
             {
-                Reincarca();
+                DashboardData date = await DashboardRepository.IncarcaAsync(
+                    AnSelectat(), LunaSelectata(), autoPerioada,
+                    ZileEchipamentStagnanta, ZileSesiuneInAsteptare, ZileRezervariViitoare,
+                    ct);
+
+                if (IsDisposed || ct.IsCancellationRequested) return;
+
+                AplicaSelectori(date);
+                AplicaKpi(date);
+                IncarcaTopOperatori(date);
+                IncarcaIncasareLunar(date);
+                IncarcaTipuriEchipamente(date);
+                IncarcaTopOperatoriGrafic(date);
+                IncarcaAlerte(date);
+
+                ActualizeazaStatus(
+                    $"Actualizat la {DateTime.Now:dd.MM.yyyy HH:mm}", Design.TextDim);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // Reîncărcare rapidă sau închidere — normal.
             }
             catch (Exception ex)
             {
-                AppLogger.Error(ex, "PanouDashboard.IncarcaAsincron");
-                MessageBox.Show(
-                    "Nu s-au putut încărca datele tabloului de bord.\n\n" + ex.Message,
-                    "Eroare", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                AppLogger.Error(ex, "PanouDashboard.IncarcaAsincronAsync");
+                if (!IsDisposed)
+                    ActualizeazaStatus("Indicatori indisponibili: " + ex.Message, Design.Danger);
             }
             finally
             {
-                ArataIncarcare(false);
+                if (!IsDisposed && ReferenceEquals(_ctsIncarcare, cts))
+                    ArataIncarcare(false);
             }
         }
 
+        private void AplicaSelectori(DashboardData date)
+        {
+            _incarcSelectii = true;
+            try
+            {
+                cmbAn.Items.Clear();
+                cmbAn.Items.Add(ToateAnii);
+                foreach (int an in date.Ani)
+                    cmbAn.Items.Add(an.ToString());
+
+                int indexAn = 0;
+                if (date.AnSelectat.HasValue)
+                {
+                    int gasit = cmbAn.Items.IndexOf(date.AnSelectat.Value.ToString());
+                    if (gasit >= 0) indexAn = gasit;
+                }
+                cmbAn.SelectedIndex = indexAn;
+
+                int luna = date.LunaSelectat ?? 0;
+                cmbLuna.SelectedIndex = Math.Max(0, Math.Min(12, luna));
+            }
+            finally
+            {
+                _incarcSelectii = false;
+            }
+        }
+
+        private void AplicaKpi(DashboardData date)
+        {
+            kpiEchipamente.Value = date.EchipamenteLibere.ToString("N0");
+            kpiEchipamente.Subtitle = $"din {date.TotalEchipamente:N0} înregistrate";
+
+            kpiSesiuni.Value = date.SesiuniInAsteptare.ToString("N0");
+            kpiSesiuni.Subtitle = $"din {date.TotalSesiuni:N0} sesiuni";
+
+            kpiRezervari.Value = date.RezervariProgramate.ToString("N0");
+            kpiRezervari.Subtitle = "cu status „Programată”";
+
+            kpiIncasareLuna.Value = date.TotalPerioada.ToString("N0");
+            kpiIncasareLuna.Unit = "EUR";
+            kpiIncasareLuna.Subtitle =
+                $"{DescriePerioada()} ({date.NumarPerioada:N0} sesiuni)";
+            AplicaTrendIncasare(date);
+
+            kpiIncasareTotal.Value = date.IncasareTotala.ToString("N0");
+            kpiIncasareTotal.Unit = "EUR";
+            kpiIncasareTotal.Subtitle = "toată perioada";
+
+            kpiPortofoliu.Value = date.Portofoliu.ToString("N0");
+            kpiPortofoliu.Unit = "EUR";
+            kpiPortofoliu.Subtitle = "Σ tarif/oră · echipamente libere";
+        }
+
         /// <summary>
-        /// Afișează/ascunde un indicator central de încărcare (culori din
-        /// MaterialTheme). Overlay-ul este eliberat complet la final.
+        /// Diferența procentuală față de perioada anterioară. Totalul anterior
+        /// vine din aceeași procedură (1 round trip), nu dintr-un query separat.
+        /// </summary>
+        private void AplicaTrendIncasare(DashboardData date)
+        {
+            int? an = AnSelectat();
+            if (!an.HasValue)
+            {
+                kpiIncasareLuna.TrendText = "";
+                return;
+            }
+
+            decimal anterior = date.TotalAnterior;
+            decimal total = date.TotalPerioada;
+
+            if (anterior <= 0)
+            {
+                if (total <= 0) { kpiIncasareLuna.TrendText = ""; return; }
+                kpiIncasareLuna.TrendText = "\u25B2 nou";
+                kpiIncasareLuna.TrendColor = Design.SuccessBright;
+                return;
+            }
+
+            decimal delta = (total - anterior) / anterior * 100m;
+            bool sus = delta >= 0;
+            kpiIncasareLuna.TrendText = (sus ? "\u25B2 +" : "\u25BC ")
+                + delta.ToString("0.#", CultureInfo.InvariantCulture) + "%";
+            kpiIncasareLuna.TrendColor = sus
+                ? Design.SuccessBright
+                : Design.DangerBright;
+        }
+
+        private void IncarcaTopOperatori(DashboardData date)
+        {
+            for (int i = 0; i < 3; i++)
+            {
+                if (i < date.Operatori.Count)
+                {
+                    DashboardOperator op = date.Operatori[i];
+                    lblOperatorNume[i].Text = op.Nume;
+                    lblOperatorIncasare[i].Text =
+                        $"{op.Total:N0} EUR  ({op.Numar} ses.)";
+                }
+                else
+                {
+                    lblOperatorNume[i].Text = "-";
+                    lblOperatorIncasare[i].Text = "-";
+                }
+            }
+
+            // Locul 1: punctul de accent se așază imediat după nume.
+            if (_punctLoc1 != null)
+            {
+                string nume1 = lblOperatorNume[0].Text ?? "";
+                _punctLoc1.Visible = nume1.Length > 0 && nume1 != "-";
+                if (_punctLoc1.Visible)
+                {
+                    using (var g = CreateGraphics())
+                    {
+                        int w = TextRenderer.MeasureText(g, nume1, _fOperNume).Width;
+                        _punctLoc1.Location = new Point(
+                            lblOperatorNume[0].Left + w + Design.Sp2,
+                            lblOperatorNume[0].Top + 8);
+                    }
+                }
+            }
+        }
+
+        private void IncarcaIncasareLunar(DashboardData date)
+        {
+            chartIncasareLunar.Series["Incasare"].Points.Clear();
+            chartIncasareLunar.Series["Numar sesiuni"].Points.Clear();
+
+            if (date.Luni.Count == 0)
+            {
+                _lblTitluIncasare.Text = "Încasare lunară";
+                _lblRezumatIncasare.Text = "Nu există sesiuni în perioada afișată.";
+                return;
+            }
+
+            decimal total = 0, peak = 0;
+            for (int i = 0; i < date.Luni.Count; i++)
+            {
+                DashboardLuna luna = date.Luni[i];
+                string eticheta = luna.Luna.ToString("MMM yy", CulturaRo);
+                int idxC = chartIncasareLunar.Series["Incasare"].Points.AddXY(
+                    eticheta, luna.Total);
+                chartIncasareLunar.Series["Numar sesiuni"].Points.AddXY(
+                    eticheta, luna.Numar);
+
+                total += luna.Total;
+                if (luna.Total > peak) peak = luna.Total;
+
+                if (i == date.Luni.Count - 1)
+                {
+                    // Ultima lună (cea aleasă) se evidențiază doar prin
+                    // treapta luminoasă a aceluiași accent — fără a doua culoare.
+                    var pC = chartIncasareLunar.Series["Incasare"].Points[idxC];
+                    pC.Color = Design.AccentHover;
+                }
+            }
+
+            DateTime prima = date.Luni[0].Luna;
+            DateTime ultima = date.Luni[date.Luni.Count - 1].Luna;
+            decimal medie = total / date.Luni.Count;
+
+            _lblTitluIncasare.Text =
+                // FIX_21: lunile in romana (ro-RO), nu in limba OS-ului.
+                $"Încasare lunară · {prima.ToString("MMM yyyy", CulturaRo)} – " +
+                $"{ultima.ToString("MMM yyyy", CulturaRo)}";
+            _lblRezumatIncasare.Text =
+                $"Total {total:N0} EUR   ·   Medie {medie:N0} EUR   ·   Vârf {peak:N0} EUR";
+        }
+
+        private void IncarcaTipuriEchipamente(DashboardData date)
+        {
+            var serie = chartTipuriEchipamente.Series["Tipuri"];
+            serie.Points.Clear();
+            chartTipuriEchipamente.Titles.Clear();
+
+            int totalBucati = 0, i = 0;
+            foreach (DashboardTip tip in date.Tipuri)
+            {
+                int idx = serie.Points.AddXY(tip.Tip, tip.Numar);
+                serie.Points[idx].Color = CuloriSerii[i % CuloriSerii.Length];
+                serie.Points[idx].BorderColor = Design.Surface;
+                serie.Points[idx].BorderWidth = 2;
+                serie.Points[idx].LegendText = $"{tip.Tip} ({tip.Numar})";
+                totalBucati += tip.Numar;
+                i++;
+            }
+
+            if (totalBucati == 0)
+            {
+                chartTipuriEchipamente.Titles.Add(new Title(
+                    "Nu există echipamente înregistrate.",
+                    Docking.Top, _fTitluGrafic, Design.TextMuted));
+                return;
+            }
+
+            chartTipuriEchipamente.Titles.Add(new Title(
+                $"Distribuția portofoliului   |   Total: {totalBucati} echipamente",
+                Docking.Top, _fTitluGrafic, Design.TextMuted));
+        }
+
+        private void IncarcaTopOperatoriGrafic(DashboardData date)
+        {
+            var serie = chartOperatoriSesiuni.Series["Incasare"];
+            serie.Points.Clear();
+            chartOperatoriSesiuni.Titles.Clear();
+
+            var operatori = date.Operatori;
+            for (int i = operatori.Count - 1; i >= 0; i--)
+            {
+                serie.Points.AddXY(
+                    $"{operatori[i].Nume}  ({operatori[i].Numar} ses.)",
+                    operatori[i].Total);
+            }
+
+            if (serie.Points.Count == 0)
+            {
+                chartOperatoriSesiuni.Titles.Add(new Title(
+                    "Nu există operatori înregistrați.",
+                    Docking.Top, _fTitluGrafic, Design.TextMuted));
+                return;
+            }
+
+            // Spațiu la capătul axei ca eticheta ultimei bare să încapă.
+            double maxim = 0;
+            foreach (var p in serie.Points) maxim = Math.Max(maxim, p.YValues[0]);
+            var axaValori = chartOperatoriSesiuni.ChartAreas["bar"].AxisY;
+            axaValori.Maximum = maxim > 0 ? maxim * 1.18 : double.NaN;
+
+            chartOperatoriSesiuni.Titles.Add(new Title(
+                "Top 5 operatori după încasarea totală",
+                Docking.Top, _fTitluGrafic, Design.TextMuted));
+        }
+
+        private void IncarcaAlerte(DashboardData date)
+        {
+            DashboardAlerta aEchipamente = GasesteAlerta(date, "Echipamente");
+            DashboardAlerta aRezervari = GasesteAlerta(date, "Rezervari");
+            DashboardAlerta aSesiuni = GasesteAlerta(date, "Sesiuni");
+
+            int nrEchipamente = aEchipamente?.Numar ?? 0;
+            string detaliuEchipamente = nrEchipamente > 0
+                ? $"cea mai veche: {aEchipamente.ZileMax ?? 0} zile"
+                : "toate în termen";
+            SeteazaAlerta(0, nrEchipamente,
+                $"Echipamente libere de peste {ZileEchipamentStagnanta} de zile",
+                detaliuEchipamente);
+
+            int nrRezervari = aRezervari?.Numar ?? 0;
+            string detaliuRezervari = nrRezervari > 0 && aRezervari.DataMin.HasValue
+                ? $"următoarea: {aRezervari.DataMin.Value:dd.MM.yyyy HH:mm}"
+                : "nicio programare apropiată";
+            SeteazaAlerta(1, nrRezervari,
+                $"Rezervări programate în următoarele {ZileRezervariViitoare} zile",
+                detaliuRezervari);
+
+            int nrSesiuni = aSesiuni?.Numar ?? 0;
+            string detaliuSesiuni = nrSesiuni > 0
+                ? $"cea mai veche: {aSesiuni.ZileMax ?? 0} zile"
+                : "toate în termen";
+            SeteazaAlerta(2, nrSesiuni,
+                $"Sesiuni în așteptare de peste {ZileSesiuneInAsteptare} de zile",
+                detaliuSesiuni);
+
+            int totalAlerte = 0;
+            for (int i = 0; i < 3; i++) totalAlerte += numarAlerta[i];
+
+            lblRezumatAlerte.Text = totalAlerte > 0
+                ? $"{totalAlerte} ALERTE ACTIVE" : "FĂRĂ ALERTE";
+            lblRezumatAlerte.ForeColor = totalAlerte > 0
+                ? Design.WarningBright : Design.SuccessBright;
+
+            // Repoziționează ca să nu se suprapună peste linkul „Arată tot".
+            if (_alertCard != null && _lnkArataTot != null)
+            {
+                using (var g = this.CreateGraphics())
+                {
+                    var sz = TextRenderer.MeasureText(
+                        lblRezumatAlerte.Text, lblRezumatAlerte.Font);
+                    lblRezumatAlerte.Size = new Size(sz.Width + 6, 20);
+                }
+                lblRezumatAlerte.Location = new Point(
+                    _alertCard.Width - _lnkArataTot.Width - lblRezumatAlerte.Width
+                        - Design.Sp4 - Design.Sp3, 17);
+            }
+        }
+
+        private static DashboardAlerta GasesteAlerta(DashboardData date, string categorie)
+        {
+            foreach (DashboardAlerta a in date.Alerte)
+                if (string.Equals(a.Categorie, categorie, StringComparison.OrdinalIgnoreCase))
+                    return a;
+            return null;
+        }
+
+        private void SeteazaAlerta(int index, int numar, string descriere, string detaliu)
+        {
+            bool activa = numar > 0;
+            numarAlerta[index] = numar;
+
+            // Punct de 6px: portocaliu aprins (activ) / verde aprins (inactiv).
+            punctAlerta[index].BackColor = activa ? Design.WarningBright : Design.SuccessBright;
+
+            lblAlertaText[index].Text = $"{descriere}  ·  {numar}";
+            lblAlertaText[index].ForeColor = activa ? Design.TextSecondary : Design.TextDim;
+
+            lblAlertaDetaliu[index].Text = detaliu;
+        }
+
+        private void RidicaAlerta(int index)
+        {
+            bool arataTot = numarAlerta[index] <= 0;
+            AlertaDoubleClick?.Invoke(index, arataTot);
+        }
+
+        private void ActualizeazaStatus(string text, Color culoare)
+        {
+            var gasite = this.Controls.Find("lblStatus", true);
+            if (gasite.Length == 0) return;
+            var lbl = (Label)gasite[0];
+            lbl.ForeColor = culoare;
+            lbl.Text = text;
+        }
+
+        /// <summary>
+        /// Afișează/ascunde indicatorul central. Overlay-ul este păstrat
+        /// până la sfârșitul încărcării curente (nu se suprapun două).
         /// </summary>
         private void ArataIncarcare(bool activ)
         {
@@ -917,7 +1366,7 @@ namespace AppClubCalculatoare
                 var overlay = new Panel
                 {
                     Dock = DockStyle.Fill,
-                    BackColor = MaterialTheme.Background
+                    BackColor = Design.Bg
                 };
 
                 var tlp = new TableLayoutPanel
@@ -925,7 +1374,7 @@ namespace AppClubCalculatoare
                     Dock = DockStyle.Fill,
                     ColumnCount = 1,
                     RowCount = 2,
-                    BackColor = MaterialTheme.Background
+                    BackColor = Design.Bg
                 };
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
                 tlp.RowStyles.Add(new RowStyle(SizeType.Percent, 50f));
@@ -934,16 +1383,16 @@ namespace AppClubCalculatoare
                 {
                     Style = ProgressBarStyle.Marquee,
                     MarqueeAnimationSpeed = 30,
-                    Width = MaterialTheme.Scale(240),
-                    Height = MaterialTheme.Scale(6),
+                    Width = 240,
+                    Height = 6,
                     Anchor = AnchorStyles.None
                 };
 
                 var lbl = new Label
                 {
                     Text = "Se încarcă datele tabloului de bord…",
-                    Font = MaterialTheme.FontBody,
-                    ForeColor = MaterialTheme.TextSecondary,
+                    Font = Design.FontBody,
+                    ForeColor = Design.TextMuted,
                     AutoSize = true,
                     Anchor = AnchorStyles.None,
                     TextAlign = ContentAlignment.MiddleCenter
@@ -967,279 +1416,11 @@ namespace AppClubCalculatoare
                 }
                 catch (Exception ex)
                 {
-                    AppLogger.Warn("Eliminare indicator încărcare: " + ex.Message,
+                    AppLogger.Warn("Eliminare indicator incarcare: " + ex.Message,
                         "PanouDashboard.ArataIncarcare");
                 }
                 _overlayIncarcare = null;
             }
-        }
-
-        private void IncarcaIncasareLunar(SqlConnection conn)
-        {
-            chartIncasareLunar.Series["Incasare"].Points.Clear();
-            chartIncasareLunar.Series["Numar sesiuni"].Points.Clear();
-            chartIncasareLunar.Titles.Clear();
-
-            int? an = AnSelectat();
-            int? luna = LunaSelectata();
-            DateTime? referinta = null;
-
-            if (luna.HasValue && an.HasValue)
-                referinta = new DateTime(an.Value, luna.Value, 1);
-            else
-            {
-                using (var cmd = new SqlCommand(@"
-                        SELECT MAX(data_sesiune) FROM Sesiuni
-                        WHERE (@an IS NULL OR YEAR(data_sesiune) = @an)", conn))
-                {
-                    cmd.Parameters.Add("@an", SqlDbType.Int).Value =
-                        an.HasValue ? (object)an.Value : DBNull.Value;
-                    object rezultat = cmd.ExecuteScalar();
-                    if (rezultat != null && rezultat != DBNull.Value)
-                    {
-                        DateTime ultima = Convert.ToDateTime(rezultat);
-                        referinta = new DateTime(ultima.Year, ultima.Month, 1);
-                    }
-                }
-            }
-
-            if (referinta == null)
-            {
-                chartIncasareLunar.Titles.Add(
-                    new Title("Nu există sesiuni în perioada afișată.",
-                              Docking.Top, fontTitluGrafic, Theme.TextMuted));
-                return;
-            }
-
-            DateTime start = referinta.Value.AddMonths(-5);
-            decimal total = 0, peak = 0;
-
-            for (int i = 0; i < 6; i++)
-            {
-                DateTime lunaGrafic = start.AddMonths(i);
-                decimal incasare = IncasareLunaDecimal(conn, lunaGrafic);
-                int nrSesiuni = NrSesiuniLuna(conn, lunaGrafic);
-
-                string eticheta = lunaGrafic.ToString("MMM yy", CulturaRo);
-                int idxC = chartIncasareLunar.Series["Incasare"].Points.AddXY(eticheta, incasare);
-                chartIncasareLunar.Series["Numar sesiuni"].Points.AddXY(eticheta, nrSesiuni);
-
-                total += incasare;
-                if (incasare > peak) peak = incasare;
-
-                if (i == 5)
-                {
-                    var pC = chartIncasareLunar.Series["Incasare"].Points[idxC];
-                    pC.Color = Theme.Success;
-                    pC.BorderColor = Color.FromArgb(0, 100, 50);
-                }
-            }
-
-            decimal medie = total / 6m;
-            chartIncasareLunar.Titles.Add(new Title(
-                // FIX_21: lunile în română (ro-RO), nu în limba OS-ului.
-                $"Încasare lunară ({start.ToString("MMM yyyy", CulturaRo)} → {referinta.Value.ToString("MMM yyyy", CulturaRo)})   |   " +
-                $"Total: {total:N0} EUR   |   Medie: {medie:N0} EUR   |   Peak: {peak:N0} EUR",
-                Docking.Top, fontTitluGrafic, Theme.Accent));
-        }
-
-        private static decimal IncasareLunaDecimal(SqlConnection conn, DateTime luna)
-        {
-            using (var cmd = new SqlCommand(@"
-                    SELECT ISNULL(SUM(incasare), 0) FROM Sesiuni
-                    WHERE YEAR(data_sesiune) = @an AND MONTH(data_sesiune) = @luna", conn))
-            {
-                cmd.Parameters.Add("@an", SqlDbType.Int).Value = luna.Year;
-                cmd.Parameters.Add("@luna", SqlDbType.Int).Value = luna.Month;
-                return Convert.ToDecimal(cmd.ExecuteScalar());
-            }
-        }
-
-        private static int NrSesiuniLuna(SqlConnection conn, DateTime luna)
-        {
-            using (var cmd = new SqlCommand(@"
-                    SELECT COUNT(*) FROM Sesiuni
-                    WHERE YEAR(data_sesiune) = @an AND MONTH(data_sesiune) = @luna", conn))
-            {
-                cmd.Parameters.Add("@an", SqlDbType.Int).Value = luna.Year;
-                cmd.Parameters.Add("@luna", SqlDbType.Int).Value = luna.Month;
-                return Convert.ToInt32(cmd.ExecuteScalar());
-            }
-        }
-
-        private void IncarcaTipuriEchipamente(SqlConnection conn)
-        {
-            var serie = chartTipuriEchipamente.Series["Tipuri"];
-            serie.Points.Clear();
-            chartTipuriEchipamente.Titles.Clear();
-
-            var culori = new[]
-            {
-                Theme.Accent, Color.FromArgb(0x6D, 0x8B, 0xFF),
-                Color.FromArgb(0xA7, 0xB6, 0xFF), Color.FromArgb(0xE0, 0xE6, 0xFF),
-                Theme.Success, Theme.Warning
-            };
-
-            int totalBucati = 0, i = 0;
-            using (var cmd = new SqlCommand(@"
-                    SELECT tip_echipament, COUNT(*) AS nr FROM Echipamente
-                    GROUP BY tip_echipament ORDER BY nr DESC", conn))
-            using (var reader = cmd.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    string tip = reader.GetString(0);
-                    int nr = reader.GetInt32(1);
-                    int idx = serie.Points.AddXY(tip, nr);
-                    serie.Points[idx].Color = culori[i % culori.Length];
-                    serie.Points[idx].BorderColor = Color.White;
-                    serie.Points[idx].BorderWidth = 2;
-                    serie.Points[idx].LegendText = $"{tip} ({nr})";
-                    totalBucati += nr;
-                    i++;
-                }
-            }
-
-            if (totalBucati == 0)
-            {
-                chartTipuriEchipamente.Titles.Add(new Title(
-                    "Nu există echipamente înregistrate.",
-                    Docking.Top, fontTitluGrafic, Theme.TextMuted));
-                return;
-            }
-
-            chartTipuriEchipamente.Titles.Add(new Title(
-                $"Distribuția portofoliului   |   Total: {totalBucati} echipamente",
-                Docking.Top, fontTitluGrafic, Theme.Accent));
-        }
-
-        private void IncarcaTopOperatoriGrafic(SqlConnection conn)
-        {
-            var serie = chartOperatoriSesiuni.Series["Incasare"];
-            serie.Points.Clear();
-            chartOperatoriSesiuni.Titles.Clear();
-
-            using (var cmd = new SqlCommand(@"
-                    SELECT TOP 5 a.nume + ' ' + a.prenume AS nume_operator,
-                           ISNULL(SUM(t.incasare), 0) AS total,
-                           COUNT(t.id_sesiune) AS nr
-                    FROM Operatori a LEFT JOIN Sesiuni t ON a.id_operator = t.id_operator
-                    GROUP BY a.id_operator, a.nume, a.prenume
-                    ORDER BY total DESC, nume_operator", conn))
-            using (var reader = cmd.ExecuteReader())
-            {
-                while (reader.Read())
-                {
-                    string numeOperator = reader.GetString(0);
-                    decimal total = Convert.ToDecimal(reader.GetValue(1));
-                    int nr = Convert.ToInt32(reader.GetValue(2));
-                    serie.Points.AddXY($"{numeOperator}  ({nr} ses.)", total);
-                }
-            }
-
-            if (serie.Points.Count == 0)
-            {
-                chartOperatoriSesiuni.Titles.Add(new Title(
-                    "Nu există operatori înregistrați.",
-                    Docking.Top, fontTitluGrafic, Theme.TextMuted));
-                return;
-            }
-
-            chartOperatoriSesiuni.Titles.Add(new Title(
-                "Top 5 operatori după încasarea totală",
-                Docking.Top, fontTitluGrafic, Theme.Accent));
-        }
-
-        private void IncarcaTopOperatori(SqlConnection conn)
-        {
-            const string query = @"
-                SELECT TOP 3 a.nume + ' ' + a.prenume AS nume_operator,
-                       ISNULL(SUM(t.incasare), 0) AS total_incasare,
-                       COUNT(t.id_sesiune) AS numar_sesiuni
-                FROM Operatori a LEFT JOIN Sesiuni t ON a.id_operator = t.id_operator
-                GROUP BY a.id_operator, a.nume, a.prenume
-                ORDER BY total_incasare DESC, nume_operator";
-
-            using (var cmd = new SqlCommand(query, conn))
-            using (var reader = cmd.ExecuteReader())
-            {
-                int index = 0;
-                while (reader.Read() && index < 3)
-                {
-                    lblOperatorNume[index].Text = reader["nume_operator"].ToString();
-                    lblOperatorIncasare[index].Text =
-                        $"{Convert.ToDecimal(reader["total_incasare"]):N0} EUR  " +
-                        $"({Convert.ToInt32(reader["numar_sesiuni"])} ses.)";
-                    index++;
-                }
-                for (; index < 3; index++)
-                {
-                    lblOperatorNume[index].Text = "-";
-                    lblOperatorIncasare[index].Text = "-";
-                }
-            }
-        }
-
-        private void IncarcaListaAni(SqlConnection conn)
-        {
-            _incarcSelectii = true;
-            try
-            {
-                string selectieVeche = cmbAn.SelectedItem as string;
-                var ani = new List<int>();
-
-                using (var cmd = new SqlCommand(
-                    "SELECT DISTINCT YEAR(data_sesiune) FROM Sesiuni ORDER BY 1 DESC", conn))
-                using (var reader = cmd.ExecuteReader())
-                    while (reader.Read()) ani.Add(reader.GetInt32(0));
-
-                cmbAn.Items.Clear();
-                cmbAn.Items.Add(ToateAnii);
-                foreach (int an in ani) cmbAn.Items.Add(an.ToString());
-
-                int index = selectieVeche == null ? -1 : cmbAn.Items.IndexOf(selectieVeche);
-                cmbAn.SelectedIndex = index >= 0 ? index : 0;
-            }
-            finally { _incarcSelectii = false; }
-        }
-
-        private void RezolvaSelectiaAn(SqlConnection conn)
-        {
-            int? luna = LunaSelectata();
-            if (!luna.HasValue || AnSelectat().HasValue) return;
-
-            using (var cmd = new SqlCommand(@"
-                    SELECT MAX(YEAR(data_sesiune)) FROM Sesiuni
-                    WHERE MONTH(data_sesiune) = @luna", conn))
-            {
-                cmd.Parameters.Add("@luna", SqlDbType.Int).Value = luna.Value;
-                object rezultat = cmd.ExecuteScalar();
-                if (rezultat == null || rezultat == DBNull.Value) return;
-
-                int index = cmbAn.Items.IndexOf(rezultat.ToString());
-                if (index < 0) return;
-
-                _incarcSelectii = true;
-                cmbAn.SelectedIndex = index;
-                _incarcSelectii = false;
-            }
-        }
-
-        private void SelecteazaUltimaPerioadaCuActivitate(SqlConnection conn)
-        {
-            object rezultat;
-            using (var cmd = new SqlCommand("SELECT MAX(data_sesiune) FROM Sesiuni", conn))
-                rezultat = cmd.ExecuteScalar();
-
-            if (rezultat == null || rezultat == DBNull.Value) return;
-
-            DateTime ultima = Convert.ToDateTime(rezultat);
-            _incarcSelectii = true;
-
-            int indexAn = cmbAn.Items.IndexOf(ultima.Year.ToString());
-            if (indexAn >= 0) cmbAn.SelectedIndex = indexAn;
-            cmbLuna.SelectedIndex = ultima.Month;
-            _incarcSelectii = false;
         }
 
         private void SchimbaPerioada()
@@ -1265,151 +1446,10 @@ namespace AppClubCalculatoare
             if (luna.HasValue && an.HasValue)
                 return new DateTime(an.Value, luna.Value, 1).ToString("MMMM yyyy", CulturaRo);
             if (luna.HasValue)
-                return new DateTime(2000, luna.Value, 1).ToString("MMMM", CulturaRo) + " (toti anii)";
+                return new DateTime(2000, luna.Value, 1).ToString("MMMM", CulturaRo) + " (toți anii)";
             if (an.HasValue) return $"anul {an.Value}";
             return "toată perioada";
         }
 
-        private void IncarcaIncasarePerioada(SqlConnection conn)
-        {
-            int? an = AnSelectat();
-            int? luna = LunaSelectata();
-
-            using (var cmd = new SqlCommand(@"
-                    SELECT ISNULL(SUM(incasare), 0) AS total, COUNT(*) AS numar
-                    FROM Sesiuni
-                    WHERE (@an IS NULL OR YEAR(data_sesiune) = @an)
-                      AND (@luna IS NULL OR MONTH(data_sesiune) = @luna)", conn))
-            {
-                cmd.Parameters.Add("@an", SqlDbType.Int).Value =
-                    an.HasValue ? (object)an.Value : DBNull.Value;
-                cmd.Parameters.Add("@luna", SqlDbType.Int).Value =
-                    luna.HasValue ? (object)luna.Value : DBNull.Value;
-
-                using (var reader = cmd.ExecuteReader())
-                {
-                    reader.Read();
-                    decimal total = reader["total"] == DBNull.Value ? 0 : Convert.ToDecimal(reader["total"]);
-                    int numar = Convert.ToInt32(reader["numar"]);
-
-                    kpiIncasareLuna.Value = total.ToString("N0");
-                    kpiIncasareLuna.Unit = "EUR";
-                    kpiIncasareLuna.Subtitle = $"{DescriePerioada()} ({numar:N0} sesiuni)";
-                }
-            }
-        }
-
-        private void IncarcaAlerte(SqlConnection conn)
-        {
-            int nrEchipamente = 0, zileEchipament = 0;
-            using (var cmd = new SqlCommand(@"
-                    SELECT COUNT(*), ISNULL(MAX(DATEDIFF(DAY, data_adaugare, CAST(GETDATE() AS DATE))), 0)
-                    FROM Echipamente WHERE status = 'Liber'
-                      AND DATEDIFF(DAY, data_adaugare, CAST(GETDATE() AS DATE)) > @zile", conn))
-            {
-                cmd.Parameters.Add("@zile", SqlDbType.Int).Value = ZileEchipamentStagnanta;
-                using (var reader = cmd.ExecuteReader())
-                    if (reader.Read())
-                    {
-                        nrEchipamente = Convert.ToInt32(reader[0]);
-                        zileEchipament = Convert.ToInt32(reader[1]);
-                    }
-            }
-
-            SeteazaAlerta(0, nrEchipamente,
-                $"Echipamente libere de peste {ZileEchipamentStagnanta} de zile",
-                nrEchipamente > 0 ? $"cea mai veche: {zileEchipament} zile" : "toate în termen");
-
-            int nrRezervari = 0;
-            DateTime? urmatoareaRezervare = null;
-            using (var cmd = new SqlCommand(@"
-                    SELECT COUNT(*), MIN(data_rezervare) FROM Rezervari
-                    WHERE status = 'Programata' AND data_rezervare >= GETDATE()
-                      AND data_rezervare <= DATEADD(DAY, @zile, GETDATE())", conn))
-            {
-                cmd.Parameters.Add("@zile", SqlDbType.Int).Value = ZileRezervariViitoare;
-                using (var reader = cmd.ExecuteReader())
-                    if (reader.Read())
-                    {
-                        nrRezervari = Convert.ToInt32(reader[0]);
-                        if (reader[1] != DBNull.Value)
-                            urmatoareaRezervare = Convert.ToDateTime(reader[1]);
-                    }
-            }
-
-            SeteazaAlerta(1, nrRezervari,
-                $"Rezervări programate în următoarele {ZileRezervariViitoare} zile",
-                nrRezervari > 0 && urmatoareaRezervare.HasValue
-                    ? $"următoarea: {urmatoareaRezervare.Value:dd.MM.yyyy HH:mm}"
-                    : "nicio programare apropiată");
-
-            int nrSesiuni = 0, zileSesiune = 0;
-            using (var cmd = new SqlCommand(@"
-                    SELECT COUNT(*), ISNULL(MAX(DATEDIFF(DAY, data_sesiune, CAST(GETDATE() AS DATE))), 0)
-                    FROM Sesiuni WHERE status = 'În așteptare'
-                      AND DATEDIFF(DAY, data_sesiune, CAST(GETDATE() AS DATE)) > @zile", conn))
-            {
-                cmd.Parameters.Add("@zile", SqlDbType.Int).Value = ZileSesiuneInAsteptare;
-                using (var reader = cmd.ExecuteReader())
-                    if (reader.Read())
-                    {
-                        nrSesiuni = Convert.ToInt32(reader[0]);
-                        zileSesiune = Convert.ToInt32(reader[1]);
-                    }
-            }
-
-            SeteazaAlerta(2, nrSesiuni,
-                $"Sesiuni în așteptare de peste {ZileSesiuneInAsteptare} de zile",
-                nrSesiuni > 0 ? $"cea mai veche: {zileSesiune} zile" : "toate în termen");
-
-            int totalAlerte = 0;
-            for (int i = 0; i < 3; i++) totalAlerte += Convert.ToInt32(lblAlertaBadge[i].Text);
-
-            lblRezumatAlerte.Text = totalAlerte > 0 ? $"{totalAlerte} ALERTE ACTIVE" : "FĂRĂ ALERTE";
-            lblRezumatAlerte.ForeColor = totalAlerte > 0 ? Theme.Warning : Theme.Success;
-            // Repoziționează ca să nu se suprapună peste butonul "Arată tot"
-            if (_alertCard != null && _btnArataTot != null)
-            {
-                // Asigură AutoSize calculat
-                using (var g = this.CreateGraphics())
-                {
-                    var sz = TextRenderer.MeasureText(lblRezumatAlerte.Text, lblRezumatAlerte.Font);
-                    lblRezumatAlerte.Size = new Size(sz.Width + 6, 20);
-                }
-                lblRezumatAlerte.Location = new Point(
-                    _alertCard.Width - _btnArataTot.Width - lblRezumatAlerte.Width - 16, 16);
-            }
-        }
-
-        private void SeteazaAlerta(int index, int numar, string descriere, string detaliu)
-        {
-            bool activa = numar > 0;
-            numarAlerta[index] = numar;
-
-            lblAlertaBadge[index].Text = numar.ToString();
-            lblAlertaBadge[index].BackColor = activa ? Theme.Warning : Theme.Success;
-
-            lblAlertaText[index].Text = descriere;
-            lblAlertaText[index].Font = activa ? fontAlertaActiva : fontAlertaInactiva;
-            lblAlertaText[index].ForeColor = activa ? Color.FromArgb(180, 80, 0) : Theme.TextMuted;
-
-            lblAlertaDetaliu[index].Text = detaliu;
-        }
-
-        private void RidicaAlerta(int index)
-        {
-            bool arataTot = numarAlerta[index] <= 0;
-            AlertaDoubleClick?.Invoke(index, arataTot);
-        }
-
-        private static decimal Scalar(SqlConnection conn, string query)
-        {
-            using (var cmd = new SqlCommand(query, conn))
-            {
-                object rezultat = cmd.ExecuteScalar();
-                if (rezultat == null || rezultat == DBNull.Value) return 0;
-                return Convert.ToDecimal(rezultat);
-            }
-        }
     }
 }

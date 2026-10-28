@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
@@ -6,19 +7,39 @@ using System.Windows.Forms;
 namespace AppClubCalculatoare.UI
 {
     /// <summary>
-    /// Buton de navigare pentru sidebar. Afișează o pictogramă (glif
-    /// Segoe Fluent Icons), un text și, opțional, un badge numeric.
-    /// Se evidențiază când e activ. Tooltip-ul se atașează automat din text.
+    /// Element de navigare din sidebar, în stilul „Linear": plat, fără
+    /// chenar și fără umbră. Starea activă este marcată de o bară verticală
+    /// de 2px în culoarea de accent și de o suprafață cyan translucidă;
+    /// hover-ul ridică discret suprafața.
     /// </summary>
     internal class NavButton : Button
     {
+        [DefaultValue("")]
         public string Icon { get; set; } = "";
+        [DefaultValue(null)]
         public string BadgeText { get; set; } = null;
 
         private bool _hover;
         private bool _active;
         private bool _tooltipAtasat;
 
+        // Poziții fixe din specificația de design.
+        private const int IconX = 14;
+        private const int TextX = 44;
+
+        // Fonturi cache-uite (butoanele de meniu se repictează la hover/activare;
+        // proprietățile Design.Font* creează un Font nou la fiecare accesare).
+        private readonly Font _fNav      = Design.FontNav;
+        private readonly Font _fNavActiv = Design.FontNavActive;
+        private readonly Font _fBadge    = Design.FontSmallBold;
+
+        protected override void Dispose(bool disposing)
+        {
+            if (disposing) { _fNav.Dispose(); _fNavActiv.Dispose(); _fBadge.Dispose(); }
+            base.Dispose(disposing);
+        }
+
+        [DefaultValue(false)]
         public bool Active
         {
             get => _active;
@@ -37,21 +58,30 @@ namespace AppClubCalculatoare.UI
                      ControlStyles.UserPaint |
                      ControlStyles.OptimizedDoubleBuffer |
                      ControlStyles.ResizeRedraw, true);
+            DoubleBuffered = true;
             FlatStyle = FlatStyle.Flat;
             FlatAppearance.BorderSize = 0;
-            Height = MaterialTheme.Scale(42);
-            Font = Theme.NavFont;
+            Height = Design.NavItemH;
+            Font = Design.FontNav;
             Cursor = Cursors.Hand;
             TextAlign = ContentAlignment.MiddleLeft;
             Padding = new Padding(0);
             ParentChanged += (s, e) => AsiguraTooltip();
+            // Retries la creearea handle-ului: in Designer, Text este setat
+            // inainte ca butonul sa fie legat de arborele formei, deci nici
+            // ParentChanged singur nu garanteaza gasirea formei.
+            HandleCreated += (s, e) => AsiguraTooltip();
         }
 
         private void AsiguraTooltip()
         {
             if (_tooltipAtasat || string.IsNullOrEmpty(Text)) return;
-            _tooltipAtasat = true;
-            MaterialUIHelper.AtasareTooltip(this, Text, Text);
+            // AtasareTooltip intoarce false daca controlul nu este inca
+            // atasat la o forma (FindForm() == null) — cazul in care
+            // Designerul seteaza Text inainte de a adauga butonul in arbore.
+            // Nu marcam _tooltipAtasat in acest caz: ParentChanged va
+            // reincearca si tooltipul va aparea efectiv.
+            _tooltipAtasat = MaterialUIHelper.AtasareTooltip(this, Text, Text);
         }
 
         protected override void OnMouseEnter(EventArgs e)
@@ -62,87 +92,61 @@ namespace AppClubCalculatoare.UI
         {
             _hover = false; Invalidate(); base.OnMouseLeave(e);
         }
-        protected override void OnResize(EventArgs e)
-        {
-            base.OnResize(e);
-            Theme.Rounded(this, Theme.RadiusSmall);
-        }
-        protected override void OnHandleCreated(EventArgs e)
-        {
-            base.OnHandleCreated(e);
-            Theme.Rounded(this, Theme.RadiusSmall);
-        }
 
         protected override void OnPaint(PaintEventArgs pevent)
         {
             var g = pevent.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-            g.Clear(Parent?.BackColor ?? Theme.Sidebar);
 
-            // Pe Sidebar închis (#131A29): activ = pastilă violet cu bară
-            // accent cyan în stânga; hover = suprafață ridicată; idle = transparent.
-            Color back = _active ? Theme.Accent
-                       : (_hover ? MaterialTheme.SurfaceAlt : Color.Transparent);
-            Color fore = _active ? Color.White
-                       : (_hover ? MaterialTheme.TextPrimary : MaterialTheme.TextSecondary);
+            // Fundalul din spatele controlului (sidebar-ul este opac).
+            g.Clear(Design.ResolveOpaqueBackground(this, Design.Bg));
 
-            if (back != Color.Transparent)
-            {
-                var rect = new Rectangle(2, 1, Math.Max(1, Width - 5), Math.Max(1, Height - 3));
-                using (var path = MaterialTheme.RoundedPath(rect, Theme.RadiusSmall))
-                {
-                    using (var brush = new SolidBrush(back))
-                        g.FillPath(brush, path);
-                    if (_active)
-                        using (var pen = new Pen(MaterialTheme.Lighter(Theme.Accent, 0.35f), 1f))
-                            g.DrawPath(pen, path);
-                }
+            Color fore = _active ? Design.Text
+                       : (_hover ? Design.Text : Design.TextMuted);
 
-                // Bară accent cyan în stânga pentru elementul activ.
-                if (_active)
-                {
-                    using (var brush = new SolidBrush(MaterialTheme.Accent))
-                    {
-                        var stripe = new Rectangle(4, Height / 2 - 11, 3, 22);
-                        using (var path = MaterialTheme.RoundedPath(stripe, 2))
-                            g.FillPath(brush, path);
-                    }
-                }
-            }
+            var rect = new Rectangle(0, 0, Math.Max(1, Width), Math.Max(1, Height));
 
-            // Pictogramă (glif Segoe Fluent Icons, centrat vertical)
-            int x = 16;
+            // Suprafață: transparentă (idle) → gri translucid (hover) →
+            // cyan translucid (activ). Fără chenar.
+            Color suprafata = _active ? Design.Alpha(Design.Accent, 30)
+                            : (_hover ? Design.Alpha(Color.White, 6) : Color.Transparent);
+            if (suprafata.A > 0)
+                using (var brush = new SolidBrush(suprafata))
+                    g.FillRectangle(brush, rect);
+
+            // Bară verticală de 2px în culoarea de accent pe elementul activ.
+            if (_active)
+                using (var brush = new SolidBrush(Design.Accent))
+                    g.FillRectangle(brush, 0, 6, 2, Math.Max(4, Height - 12));
+
+            // Pictogramă (glif Segoe Fluent Icons, 12pt).
             if (!string.IsNullOrEmpty(Icon))
-            {
-                MaterialTheme.DrawGlyph(g, Icon, new Point(x, (Height - 20) / 2),
-                    13f, _active ? Color.White : fore);
-                x += 30;
-            }
+                MaterialTheme.DrawGlyph(g, Icon, new Point(IconX, (Height - 20) / 2), 12f, fore);
 
-            // Text
-            var textRect = new Rectangle(x, 0, Width - x - 60, Height);
-            TextRenderer.DrawText(g, Text,
-                _active ? Theme.NavFontActive : Theme.NavFont,
+            // Text.
+            int x = string.IsNullOrEmpty(Icon) ? Design.Sp4 : TextX;
+            var textRect = new Rectangle(x, 0, Math.Max(10, Width - x - 12), Height);
+            TextRenderer.DrawText(g, Text ?? string.Empty,
+                _active ? _fNavActiv : _fNav,
                 textRect, fore,
                 TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
                 TextFormatFlags.EndEllipsis);
 
-            // Badge
+            // Badge numeric (opțional) — pastilă discretă, nu accent colorat.
             if (!string.IsNullOrEmpty(BadgeText))
             {
-                var fBadge = Theme.SmallBold;
-                int bW = TextRenderer.MeasureText(BadgeText, fBadge).Width + 14;
-                int bH = 20;
-                int bX = Width - bW - 12;
+                int bW = TextRenderer.MeasureText(BadgeText, _fBadge).Width + Design.Sp3;
+                int bH = 18;
+                int bX = Width - bW - Design.Sp3;
                 int bY = (Height - bH) / 2;
 
-                using (var brush = new SolidBrush(Theme.Warning))
-                using (var path = MaterialTheme.RoundedPath(new Rectangle(bX, bY, bW, bH), 10))
+                using (var path = Design.RoundedPath(new Rectangle(bX, bY, bW, bH), 9))
+                using (var brush = new SolidBrush(Design.SurfaceRaised))
                     g.FillPath(brush, path);
 
-                TextRenderer.DrawText(g, BadgeText, fBadge,
-                    new Rectangle(bX, bY, bW, bH), Color.White,
+                TextRenderer.DrawText(g, BadgeText, _fBadge,
+                    new Rectangle(bX, bY, bW, bH), Design.TextMuted,
                     TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
             }
         }

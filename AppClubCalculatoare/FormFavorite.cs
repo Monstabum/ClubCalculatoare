@@ -1,6 +1,6 @@
 using System;
 using System.Data;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Drawing;
 using System.Windows.Forms;
 using AppClubCalculatoare.UI;
@@ -32,6 +32,12 @@ namespace AppClubCalculatoare
             this.StartPosition = FormStartPosition.CenterScreen;
             this.BackColor     = MaterialTheme.Background;
             this.Font          = MaterialTheme.FontBody;
+
+            // DPI: scalare uniformă (fereastra este DPI-aware) + titlu închis.
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode       = AutoScaleMode.Dpi;
+            WindowChrome.EnableDarkTitleBar(this);
+
             InitializeComponent();
             IncarcaDate();
         }
@@ -85,11 +91,11 @@ namespace AppClubCalculatoare
 
             var searchBox = new Panel
             {
-                Location = new Point(12, 11),
+                Location = new Point(12, 10),
                 Size     = new Size(380, 36),
-                BackColor = MaterialTheme.Background,
                 Anchor   = AnchorStyles.Top | AnchorStyles.Left
             };
+            MaterialUIHelper.StyleSearchBox(searchBox);
             toolbar.Controls.Add(searchBox);
 
             var lblSearchIcon = new Label
@@ -107,9 +113,9 @@ namespace AppClubCalculatoare
             {
                 Name        = "txtCautare",
                 BorderStyle = BorderStyle.None,
-                BackColor   = MaterialTheme.Background,
-                ForeColor   = MaterialTheme.TextSecondary,
-                Font        = MaterialTheme.FontBody,
+                BackColor   = Design.SurfaceRaised,
+                ForeColor   = Design.TextDim,
+                Font        = Design.FontBody,
                 Multiline   = true,
                 WordWrap    = false,
                 Text        = "Caut\u0103...",
@@ -123,7 +129,7 @@ namespace AppClubCalculatoare
                 if (txtCautare.Text == "Caut\u0103...")
                 {
                     txtCautare.Text = "";
-                    txtCautare.ForeColor = MaterialTheme.TextPrimary;
+                    txtCautare.ForeColor = Design.Text;
                 }
             };
             txtCautare.LostFocus += (s, e) =>
@@ -131,7 +137,7 @@ namespace AppClubCalculatoare
                 if (string.IsNullOrEmpty(txtCautare.Text))
                 {
                     txtCautare.Text = "Caut\u0103...";
-                    txtCautare.ForeColor = MaterialTheme.TextSecondary;
+                    txtCautare.ForeColor = Design.TextDim;
                 }
             };
             txtCautare.TextChanged += (s, e) =>
@@ -139,7 +145,7 @@ namespace AppClubCalculatoare
             searchBox.Controls.Add(txtCautare);
 
             var btnRefresh = MaterialUIHelper.Button("\U0001F504  Re\u00eencarc\u0103",
-                MaterialButtonStyle.Secondary, 140, 36);
+                MaterialButtonStyle.Secondary, 140);
             btnRefresh.Location = new Point(402, 11);
             btnRefresh.Click += (s, e) => IncarcaDate();
             toolbar.Controls.Add(btnRefresh);
@@ -198,7 +204,7 @@ namespace AppClubCalculatoare
                     WHERE  u.username = @user
                     ORDER  BY f.data_adaugare DESC";
 
-                using (var conn = new SqlConnection(connectionString))
+                using (var conn = SqlDb.CreateConnection())
                 using (var da = new SqlDataAdapter(query, conn))
                 {
                     da.SelectCommand.Parameters.Add("@user", SqlDbType.NVarChar, 50)
@@ -326,10 +332,10 @@ namespace AppClubCalculatoare
             int id = GetIdRandSelectat();
             if (id < 0) return;
 
-            if (MessageBox.Show(
+            // FIX BUG-04: dialog propriu cu butoane românești.
+            if (!DialogHelper.Confirma(this, "Confirmare",
                     "Elimini echipamentul selectat din lista ta de favorite?",
-                    "Confirmare", MessageBoxButtons.YesNo, MessageBoxIcon.Question)
-                != DialogResult.Yes) return;
+                    "Elimină", "Anulează")) return;
 
             try
             {

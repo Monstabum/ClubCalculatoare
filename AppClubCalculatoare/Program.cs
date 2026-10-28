@@ -5,16 +5,55 @@ namespace AppClubCalculatoare
 {
     internal static class Program
     {
+        private static string _ultimaEroareAfisata = "";
+        private static DateTime _momentUltimaEroare = DateTime.MinValue;
+
         [STAThread]
         static void Main()
         {
+            // ── DPI: proces „per-monitor v2" ─────────────────────────
+            // Fără asta, Windows consideră aplicația DPI-unaware și
+            // scalează bitmap toată fereastra la 125%/150% — textul și
+            // butoanele apar „mătăhăloase". Trebuie apelat ÎNAINTE de
+            // crearea oricărei ferestre. (Vezi și Elementele din UI
+            // care își scalează singure desenul: MaterialUI.Scale.)
+            Application.SetHighDpiMode(HighDpiMode.PerMonitorV2);
+
+            // ── FIX BUG-04: cultură românească pentru tot procesul ────
+            // Fără asta, MessageBox/OpenFileDialog/PrintDialog preiau limba
+            // sistemului de operare: pe un Windows cu altă limbă butoanele
+            // apareau în acea limbă (ex. „Да"/"Нет") în mijlocul unei
+            // interfețe integral românești. Setăm și Culture (formate de
+            // număr/dată și separatorul CSV) și UICulture (textul controalelor).
+            try
+            {
+                var ro = new System.Globalization.CultureInfo("ro-RO");
+                System.Globalization.CultureInfo.DefaultThreadCurrentCulture   = ro;
+                System.Globalization.CultureInfo.DefaultThreadCurrentUICulture = ro;
+                System.Threading.Thread.CurrentThread.CurrentCulture   = ro;
+                System.Threading.Thread.CurrentThread.CurrentUICulture = ro;
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Warn("Setare cultură ro-RO eșuată: " + ex.Message, "Program");
+            }
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
 
             // ── Handler global pentru exceptii negestionate ──────────
+            // Protectie anti-bucla: aceeasi eroare repetata la <5s distanta
+            // (ex. la fiecare repaint al unui control stricat) se logheaza
+            // fara dialog, ca aplicatia sa poata fi inchisa normal.
             Application.ThreadException += (s, e) =>
             {
                 AppLogger.Error(e.Exception, "Application.ThreadException");
+                string cheie = e.Exception.GetType().FullName + "|" + e.Exception.Message;
+                var acum = DateTime.Now;
+                if (cheie == _ultimaEroareAfisata && (acum - _momentUltimaEroare).TotalSeconds < 5)
+                    return;
+                _ultimaEroareAfisata = cheie;
+                _momentUltimaEroare = acum;
                 MessageBox.Show(
                     "A aparut o eroare neasteptata:\n\n" + e.Exception.Message +
                     "\n\nEroarea a fost inregistrata in fisierul de log.",

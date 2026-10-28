@@ -1,13 +1,20 @@
 using System;
+using System.ComponentModel;
 using System.Drawing;
-using System.Drawing.Drawing2D;
+using System.Drawing.Text;
 using System.Windows.Forms;
 
 namespace AppClubCalculatoare.UI
 {
     /// <summary>
-    /// Card KPI: valoare numerică mare, etichetă mică, subtitlu,
-    /// trend opțional și bară de accent colorată în stânga.
+    /// Card KPI în stilul „metric header" folosit de Stripe / Linear:
+    /// o etichetă uppercase discretă, valoarea mare ca element dominant,
+    /// iar jos un subtitlu și un trend aliniat la dreapta.
+    ///
+    /// Cardul NU desenează nici chenar, nici umbră, nici bară de accent:
+    /// separatoarele de 1px vin din containerul părinte (TableLayoutPanel
+    /// cu fundal <see cref="Design.Border"/>), iar ierarhia este dată
+    /// exclusiv de suprafață și tipografie.
     /// </summary>
     internal class KpiCard : Panel
     {
@@ -16,33 +23,78 @@ namespace AppClubCalculatoare.UI
         private string _unit = "";
         private string _subtitle = "";
         private string _trendText = "";
-        private Color _trendColor = Theme.TextMuted;
-        private Color _accent = Theme.Accent;
-        private string _icon = "";
+        private Color _trendColor = Design.TextMuted;
 
-        public string Title    { get => _title;    set { _title = value; Invalidate(); } }
-        public string Value    { get => _value;    set { _value = value; Invalidate(); } }
-        public string Unit     { get => _unit;     set { _unit = value; Invalidate(); } }
-        public string Subtitle { get => _subtitle; set { _subtitle = value; Invalidate(); } }
-        public string Icon     { get => _icon;     set { _icon = value; Invalidate(); } }
+        /// <summary>
+        /// Păstrat pentru compatibilitate cu apelurile existente. Nu are
+        /// efect vizual: noul card nu folosește culoare de accent.
+        /// </summary>
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public Color Accent { get; set; } = Design.Accent;
 
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public string Title
+        {
+            get => _title;
+            set { _title = value ?? ""; Invalidate(); }
+        }
+
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public string Value
+        {
+            get => _value;
+            set { _value = value ?? ""; Invalidate(); }
+        }
+
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public string Unit
+        {
+            get => _unit;
+            set { _unit = value ?? ""; Invalidate(); }
+        }
+
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+        public string Subtitle
+        {
+            get => _subtitle;
+            set { _subtitle = value ?? ""; Invalidate(); }
+        }
+
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public string TrendText
         {
             get => _trendText;
-            set { _trendText = value; Invalidate(); }
+            set { _trendText = value ?? ""; Invalidate(); }
         }
 
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public Color TrendColor
         {
             get => _trendColor;
             set { _trendColor = value; Invalidate(); }
         }
 
-        public Color Accent
-        {
-            get => _accent;
-            set { _accent = value; Invalidate(); }
-        }
+        // Fonturi cache-uite pe instanță: cardurile se repictează des (refresh
+        // de date, resize), iar proprietățile Design.Font* creează un Font nou
+        // la fiecare accesare — fără cache s-ar pierde handle-uri GDI.
+        private readonly Font _fOverline = Design.FontOverline;
+        private readonly Font _fValue    = Design.FontKpiValue;
+        private readonly Font _fUnit     = Design.FontKpiUnit;
+        private readonly Font _fCaption  = Design.FontSmall;
+        private readonly Font _fTrend    = Design.FontSmallBold;
+
+        // Padding intern (grila de 4px): 16 stânga/dreapta, 14 sus/jos.
+        private const int PadL = Design.Sp4;
+        private const int PadT = 14;
+        private const int PadR = Design.Sp4;
+        private const int PadB = 14;
 
         public KpiCard()
         {
@@ -50,73 +102,123 @@ namespace AppClubCalculatoare.UI
                      ControlStyles.UserPaint |
                      ControlStyles.OptimizedDoubleBuffer |
                      ControlStyles.ResizeRedraw, true);
-            BackColor = Theme.Surface;
-            Height = MaterialTheme.Scale(110);
+            DoubleBuffered = true;
+            BackColor = Design.Surface;
+            Height = 120;
         }
 
-        protected override void OnResize(EventArgs e)
+        protected override void Dispose(bool disposing)
         {
-            base.OnResize(e);
-            Theme.Rounded(this, Theme.Radius);
-        }
-        protected override void OnHandleCreated(EventArgs e)
-        {
-            base.OnHandleCreated(e);
-            Theme.Rounded(this, Theme.Radius);
+            if (disposing)
+            {
+                _fOverline.Dispose();
+                _fValue.Dispose();
+                _fUnit.Dispose();
+                _fCaption.Dispose();
+                _fTrend.Dispose();
+            }
+            base.Dispose(disposing);
         }
 
         protected override void OnPaint(PaintEventArgs e)
         {
             var g = e.Graphics;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.Clear(Theme.Surface);
+            g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
 
-            // Border subtil
-            using (var pen = new Pen(Theme.Border, 1f))
-                g.DrawRectangle(pen, 0, 0, Width - 1, Height - 1);
+            // Fără chenar propriu: umplem doar suprafața cardului. Separatoarele
+            // de 1px sunt desenate de containerul părinte.
+            using (var brush = new SolidBrush(Design.Surface))
+                g.FillRectangle(brush, ClientRectangle);
 
-            // Bară de accent (vertical, stânga)
-            using (var brush = new SolidBrush(_accent))
-                g.FillRectangle(brush, 0, 0, 4, Height);
+            int latime = Width - PadL - PadR;
+            if (latime <= 0 || Height <= 0) return;
 
-            // Iconiță + titlu
-            int y = 14;
-            if (!string.IsNullOrEmpty(_icon))
-                MaterialTheme.DrawGlyph(g, _icon, new Point(18, y), 12f, Theme.TextMuted);
-            TextRenderer.DrawText(g, _title, Theme.SmallBold,
-                new Rectangle(42, y, Width - 58, 18), Theme.TextMuted,
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
+            // ── 1. Etichetă uppercase, tracking larg, TextDim ──────
+            int y = PadT;
+            int hOverline = DrawTrackingText(g, _title.ToUpperInvariant(), _fOverline,
+                Design.TextDim, PadL, y, latime, 1);
+            y += hOverline + Design.Sp2;
+
+            // ── 2. Valoare mare (Text) + unitate (TextDim) ─────────
+            var szVal = TextRenderer.MeasureText(g, _value, _fValue,
+                new Size(int.MaxValue, int.MaxValue), FlagsNoPadding);
+            int hVal = Math.Max(_fValue.Height, szVal.Height);
+
+            TextRenderer.DrawText(g, _value, _fValue,
+                new Rectangle(PadL, y, Math.Max(10, latime), hVal), Design.Text,
+                TextFormatFlags.Left | TextFormatFlags.Top |
+                TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix |
                 TextFormatFlags.EndEllipsis);
 
-            // Valoare mare
-            y = 36;
-            var szVal = TextRenderer.MeasureText(_value, Theme.KpiValue);
-            TextRenderer.DrawText(g, _value, Theme.KpiValue,
-                new Point(18, y), Theme.Text);
-
-            // Unitate
             if (!string.IsNullOrEmpty(_unit))
             {
-                TextRenderer.DrawText(g, _unit, Theme.KpiUnit,
-                    new Point(18 + szVal.Width + 6, y + 12), Theme.TextMuted);
+                var szUnit = TextRenderer.MeasureText(g, _unit, _fUnit,
+                    new Size(int.MaxValue, int.MaxValue), FlagsNoPadding);
+                TextRenderer.DrawText(g, _unit, _fUnit,
+                    new Point(PadL + szVal.Width + Design.Sp1,
+                              y + Math.Max(0, hVal - szUnit.Height)),
+                    Design.TextDim,
+                    TextFormatFlags.Left | TextFormatFlags.Top |
+                    TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
             }
 
-            // Subtitlu
-            y = 72;
-            TextRenderer.DrawText(g, _subtitle, Theme.Caption,
-                new Rectangle(18, y, Width - 30, 16), Theme.TextDim,
-                TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
-                TextFormatFlags.EndEllipsis);
+            // ── 3. Rândul de jos: subtitlu (stânga) + trend (dreapta) ──
+            int hBottom = Math.Max(_fCaption.Height, _fTrend.Height);
+            int bottomY = Math.Max(y + hVal + Design.Sp1, Height - PadB - hBottom);
 
-            // Trend
+            int trendW = 0;
             if (!string.IsNullOrEmpty(_trendText))
             {
-                y = 88;
-                TextRenderer.DrawText(g, _trendText, Theme.Caption,
-                    new Rectangle(18, y, Width - 30, 16), _trendColor,
-                    TextFormatFlags.Left | TextFormatFlags.VerticalCenter |
-                    TextFormatFlags.EndEllipsis);
+                trendW = TextRenderer.MeasureText(g, _trendText, _fTrend,
+                    new Size(int.MaxValue, int.MaxValue), FlagsNoPadding).Width;
+
+                TextRenderer.DrawText(g, _trendText, _fTrend,
+                    new Rectangle(Width - PadR - trendW, bottomY, trendW, hBottom),
+                    _trendColor,
+                    TextFormatFlags.Right | TextFormatFlags.Top |
+                    TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
             }
+
+            int subW = latime - (trendW > 0 ? trendW + Design.Sp3 : 0);
+            if (subW > 0 && !string.IsNullOrEmpty(_subtitle))
+                TextRenderer.DrawText(g, _subtitle, _fCaption,
+                    new Rectangle(PadL, bottomY, subW, hBottom), Design.TextMuted,
+                    TextFormatFlags.Left | TextFormatFlags.Top |
+                    TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix |
+                    TextFormatFlags.EndEllipsis);
+        }
+
+        private const TextFormatFlags FlagsNoPadding =
+            TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix;
+
+        /// <summary>
+        /// Desenează text cu spațiere între litere (tracking), folosit pentru
+        /// eticheta uppercase a cardului. GDI nu expune letter-spacing, deci
+        /// avansăm manual după fiecare caracter. Întoarce înălțimea rândului.
+        /// </summary>
+        private static int DrawTrackingText(Graphics g, string text, Font font,
+            Color color, int x, int y, int maxWidth, int tracking)
+        {
+            if (string.IsNullOrEmpty(text)) return font.Height;
+
+            int cursor = x;
+            int limita = x + maxWidth;
+            foreach (char ch in text)
+            {
+                string s = ch.ToString();
+                int w = TextRenderer.MeasureText(g, s, font,
+                    new Size(int.MaxValue, int.MaxValue), FlagsNoPadding).Width;
+                if (w <= 0) w = 4;
+
+                if (cursor + w > limita) break;   // nu depășim cardul
+
+                TextRenderer.DrawText(g, s, font, new Point(cursor, y), color,
+                    TextFormatFlags.Left | TextFormatFlags.Top |
+                    TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+
+                cursor += w + tracking;
+            }
+            return font.Height;
         }
     }
 }

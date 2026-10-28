@@ -1,7 +1,9 @@
-"""Genereaza 20 poze demo (2/echipament) in folderul PozeDemo.
+"""Genereaza poze demo in folderul PozeDemo (fallback procedural).
 
-Oglindeste designul clasei C# DemoPoze (gradient + cladire per tip +
-banda titlu), ca fisierele sa poata fi si importate prin drag&drop.
+NOTA (11.10.2026): folderul PozeDemo contine acum FOTOGRAFII REALE
+(Echip01..Echip10_*.jpg, vezi PozeDemo/README.md + SURSE_FOTO.md).
+Acest script ramane doar ca fallback offline — ruleaza-l doar daca vrei
+sa regenerezi desenele procedurale. Numele de iesire este EchipNN_*.
 """
 import os
 from PIL import Image, ImageDraw, ImageFont
@@ -219,7 +221,7 @@ def main():
     for pid, tip, oras, adresa in PROPS:
         for vedere in ('Exterior', 'Interior'):
             img = make(pid, tip, oras, adresa, vedere)
-            nume = 'Prop%02d_%s.jpg' % (pid, vedere)
+            nume = 'Echip%02d_%s.jpg' % (pid, vedere)
             cale = os.path.join(OUT, nume)
             img.save(cale, 'JPEG', quality=90)
             n += 1

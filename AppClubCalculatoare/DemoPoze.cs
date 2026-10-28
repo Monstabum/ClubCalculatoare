@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Drawing.Imaging;
@@ -43,7 +43,7 @@ namespace AppClubCalculatoare
             List<int> rezultat = new List<int>();
             try
             {
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     conn.Open();
                     const string sql = @"
@@ -64,9 +64,9 @@ namespace AppClubCalculatoare
             }
             catch (SqlException ex) when (ex.Message.Contains("EchipamentFoto"))
             {
-                // Baza fara migrare — toate echipamentele sunt "goale".
+                // Baza fără migrare — toate echipamentele sunt "goale".
                 AppLogger.Warn(
-                    "Tabela EchipamentFoto lipseste — ruleaza BD\\MigrareFoto.sql. " +
+                    "Tabela EchipamentFoto lipsește — rulează BD\\MigrareFoto.sql. " +
                     "Se considera toate echipamentele fara poze.",
                     "DemoPoze");
                 rezultat = ToateEchipamentele();
@@ -98,7 +98,7 @@ namespace AppClubCalculatoare
             List<EchipamentScurta> goale = EchipamenteGoaleCuDetalii();
             if (goale == null)
             {
-                mesaj = "Tabela EchipamentFoto lipseste — ruleaza mai intai BD\\MigrareFoto.sql.";
+                mesaj = "Tabela EchipamentFoto lipsește — rulează mai întâi BD\\MigrareFoto.sql.";
                 return 0;
             }
             if (goale.Count == 0)
@@ -112,7 +112,7 @@ namespace AppClubCalculatoare
             // POZE REALE: daca folderul PozeDemo exista cu
             // imagini reale, le folosim pe acestea in locul desenelor
             // procedurale. Fallback-ul procedural de mai jos ramane
-            // pentru cazul in care folderul lipseste / e gol.
+            // pentru cazul in care folderul lipsește / e gol.
             int adaugateReale;
             int esuateReale;
             string mesajReal;
@@ -171,19 +171,19 @@ namespace AppClubCalculatoare
                     adaugate, goale.Count);
             else
                 mesaj = string.Format(
-                    "Au fost generate {0} poze demo ({1} au esuat — vezi app.log).",
+                    "Au fost generate {0} poze demo ({1} au eșuat — vezi app.log).",
                     adaugate, esuate);
             return adaugate;
         }
 
-        // ── Poze reale din folderul PozeDemo ─────────────────────
+        // -- Poze reale din folderul PozeDemo ---------------------
 
         /// <summary>
-        /// Incearca sa adauge poze REALE (vedere exterioară + interior) din
+        /// Incearca sa adauge poze REALE (vedere exterioara + interior) din
         /// folderul PozeDemo pentru echipamentele goale. Intoarce true
         /// daca folderul contine imagini importabile (chiar daca unele
-        /// au esuat) — apelantul nu mai deseneaza procedural.
-        /// False = folder lipsa/gol sau fara corespondenta → fallback
+        /// au eșuat) — apelantul nu mai deseneaza procedural.
+        /// False = folder lipsa/gol sau fara corespondenta > fallback
         /// la desenele procedurale.
         /// </summary>
         private static bool IncearcaPozeReale(List<EchipamentScurta> goale,
@@ -239,14 +239,14 @@ namespace AppClubCalculatoare
                 }
 
                 if (adaugate == 0 && esuate == 0)
-                    return false; // nicio corespondenta → procedural
+                    return false; // nicio corespondenta > procedural
                 if (esuate == 0)
                     mesaj = string.Format(
                         "Au fost adaugate {0} poze demo reale (din PozeDemo) " +
                         "pentru {1} echipamente.", adaugate, goale.Count);
                 else
                     mesaj = string.Format(
-                        "Au fost adaugate {0} poze demo reale ({1} au esuat — " +
+                        "Au fost adaugate {0} poze demo reale ({1} au eșuat — " +
                         "vezi app.log).", adaugate, esuate);
                 return true;
             }
@@ -284,7 +284,7 @@ namespace AppClubCalculatoare
             return rezultat;
         }
 
-        // ── Citire echipamente ────────────────────────────────────
+        // -- Citire echipamente ------------------------------------
 
         private class EchipamentScurta
         {
@@ -296,14 +296,14 @@ namespace AppClubCalculatoare
 
         /// <summary>
         /// Echipamentele fara poze + detalii pentru desen.
-        /// Null daca tabela EchipamentFoto lipseste (mesaj spre SSMS).
+        /// Null daca tabela EchipamentFoto lipsește (mesaj spre SSMS).
         /// </summary>
         private static List<EchipamentScurta> EchipamenteGoaleCuDetalii()
         {
             try
             {
                 List<EchipamentScurta> rezultat = new List<EchipamentScurta>();
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     conn.Open();
                     const string sql = @"
@@ -334,7 +334,7 @@ namespace AppClubCalculatoare
             catch (SqlException ex) when (ex.Message.Contains("EchipamentFoto"))
             {
                 AppLogger.Warn(
-                    "Tabela EchipamentFoto lipseste — ruleaza BD\\MigrareFoto.sql.",
+                    "Tabela EchipamentFoto lipsește — rulează BD\\MigrareFoto.sql.",
                     "DemoPoze");
                 return null;
             }
@@ -350,7 +350,7 @@ namespace AppClubCalculatoare
             List<int> rezultat = new List<int>();
             try
             {
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     const string sql = "SELECT id_echipament FROM Echipamente ORDER BY id_echipament";
                     using (var cmd = new SqlCommand(sql, conn))
@@ -371,7 +371,7 @@ namespace AppClubCalculatoare
             return rezultat;
         }
 
-        // ── Desen procedural ──────────────────────────────────────
+        // -- Desen procedural --------------------------------------
 
         /// <summary>
         /// Deseneaza o imagine demo 1024x768. Apelantul elibereaza Bitmap-ul.
@@ -795,8 +795,8 @@ namespace AppClubCalculatoare
                 g.FillRectangle(badge, 30, InaltimeImagine - 100, 250, 40);
                 g.DrawString(eticheta, fontMic, Brushes.White, 42, InaltimeImagine - 96);
 
-                string titlu = string.Format("{0} — {1}", tip ?? "Echipament", oras ?? "");
-                g.DrawString(titlu.Trim(' ', '—'), fontMare, Brushes.White,
+                string titlu = string.Format("{0} · {1}", tip ?? "Echipament", oras ?? "");
+                g.DrawString(titlu.Trim(' ', '·'), fontMare, Brushes.White,
                     300, InaltimeImagine - 108);
                 if (!string.IsNullOrWhiteSpace(adresa))
                     g.DrawString(adresa.Trim() + "  ·  imagine demo",
@@ -804,7 +804,7 @@ namespace AppClubCalculatoare
             }
         }
 
-        // ── Fisiere temporare ─────────────────────────────────────
+        // -- Fisiere temporare -------------------------------------
 
         private static string CaleTemporara()
         {

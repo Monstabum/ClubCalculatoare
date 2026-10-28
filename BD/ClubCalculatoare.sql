@@ -1,4 +1,4 @@
-/* ================================================================
+﻿/* ================================================================
    SISTEM DE GESTIUNE CLUB DE CALCULATOARE — SCRIPT COMPLET
    Baza de date: ClubCalculatoare
    ================================================================
@@ -186,6 +186,7 @@ CREATE TABLE Sesiuni (
     id_operator         INT NOT NULL,
     tip_sesiune   NVARCHAR(20)  NOT NULL,
     data_sesiune  DATE NOT NULL,
+    durata_minute INT NULL,
     cost_total       DECIMAL(12,2) NOT NULL,
     incasare         DECIMAL(10,2) NOT NULL,
     status           NVARCHAR(20)  NOT NULL,
@@ -285,16 +286,16 @@ GO
 /* ── 10 echipamente ──────────────────────────────────────────── */
 SET IDENTITY_INSERT Echipamente ON;
 INSERT INTO Echipamente (id_echipament, tip_echipament, denumire, oras, putere_watt, ram_gb, numar_locuri, an_achizitie, tarif_ora, status, sala_id, data_adaugare, descriere) VALUES
-(1,  'PC Gaming', 'PC-01 \u2014 Str. Mihai Viteazu 10, ap. 4', 'Bucuresti',   650.00, 32,   1,    2023, 145, 'Liber', 1,  '2024-02-10', 'PC gaming RTX 4070, monitor 240Hz, scaun ergonomic'),
-(2,  'Consola',   'CON-01 \u2014 Str. Lalelelor 22',           'Cluj-Napoca', 220.00, 16,   NULL, 2022, 320, 'Ocupat',     3,  '2024-03-05', 'Consola PS5 + TV 55 inch, canapea 2 locuri'),
-(3,  'Server',    'SRV-01 \u2014 Str. Campului 5',             'Timisoara',   500.00, NULL, NULL, NULL,  75, 'Liber', 4,  '2024-01-20', 'Server dedicat gazduire jocuri, rack 12U'),
-(4,  'Simulator', 'SIM-01 \u2014 Bd. Unirii 30',               'Bucuresti',   350.00, 16,   1,    2021, 250, 'Rezervat',  2,  '2024-04-15', 'Simulator curse cu volan direct-drive'),
-(5,  'PC Gaming', 'PC-02 \u2014 Str. Pacurari 88, ap. 12',    'Iasi',        600.00, 32,   1,    2022,  92, 'Ocupat',     5,  '2024-05-02', 'PC gaming RTX 4060, monitor 165Hz'),
-(6,  'VR',        'VR-01 \u2014 Str. Republicii 14, et. 3',   'Brasov',       95.00, 16,   1,    2023, 175, '\u00cen service',   6,  '2024-06-11', 'Casca VR Meta Quest 3, spatiu de joc 4x4m'),
-(7,  'PC Gaming', 'PC-03 \u2014 Calea Bucuresti 120, ap. 7',  'Oradea',      620.00, 32,   1,    2023, 118, 'Ocupat',     8,  '2024-07-19', 'PC gaming RTX 4060 Ti, monitor 180Hz'),
-(8,  'Consola',   'CON-02 \u2014 Str. Primaverii 3',          'Constanta',   220.00, 16,   NULL, 2023, 410, 'Liber', 9,  '2024-08-23', 'Consola Xbox Series X + TV 65 inch'),
-(9,  'PC Gaming', 'PC-04 \u2014 Str. Lunga 45, ap. 2',        'Brasov',       580.00, 16,   1,    2020,  88, 'Rezervat',  6,  '2024-09-09', 'PC lobby, monitor 144Hz, potrivit pentru cursuri'),
-(10, 'Server',    'SRV-02 \u2014 Str. Plopilor 60',            'Sibiu',       750.00, NULL, NULL, NULL, 130, 'Liber', 10, '2025-01-15', 'Server backup + statie de streaming');
+(1,  'PC Gaming', 'PC-01 — Str. Mihai Viteazu 10, ap. 4', 'Bucuresti',   650.00, 32,   1,    2023, 145, 'Liber', 1,  '2024-02-10', 'PC gaming RTX 4070, monitor 240Hz, scaun ergonomic'),
+(2,  'Consola',   'CON-01 — Str. Lalelelor 22',           'Cluj-Napoca', 220.00, 16,   NULL, 2022, 320, 'Ocupat',     3,  '2024-03-05', 'Consola PS5 + TV 55 inch, canapea 2 locuri'),
+(3,  'Server',    'SRV-01 — Str. Campului 5',             'Timisoara',   500.00, NULL, NULL, NULL,  75, 'Liber', 4,  '2024-01-20', 'Server dedicat gazduire jocuri, rack 12U'),
+(4,  'Simulator', 'SIM-01 — Bd. Unirii 30',               'Bucuresti',   350.00, 16,   1,    2021, 250, 'Rezervat',  2,  '2024-04-15', 'Simulator curse cu volan direct-drive'),
+(5,  'PC Gaming', 'PC-02 — Str. Pacurari 88, ap. 12',    'Iasi',        600.00, 32,   1,    2022,  92, 'Ocupat',     5,  '2024-05-02', 'PC gaming RTX 4060, monitor 165Hz'),
+(6,  'VR',        'VR-01 — Str. Republicii 14, et. 3',   'Brasov',       95.00, 16,   1,    2023, 175, 'În service',   6,  '2024-06-11', 'Casca VR Meta Quest 3, spatiu de joc 4x4m'),
+(7,  'PC Gaming', 'PC-03 — Calea Bucuresti 120, ap. 7',  'Oradea',      620.00, 32,   1,    2023, 118, 'Ocupat',     8,  '2024-07-19', 'PC gaming RTX 4060 Ti, monitor 180Hz'),
+(8,  'Consola',   'CON-02 — Str. Primaverii 3',          'Constanta',   220.00, 16,   NULL, 2023, 410, 'Liber', 9,  '2024-08-23', 'Consola Xbox Series X + TV 65 inch'),
+(9,  'PC Gaming', 'PC-04 — Str. Lunga 45, ap. 2',        'Brasov',       580.00, 16,   1,    2020,  88, 'Rezervat',  6,  '2024-09-09', 'PC lobby, monitor 144Hz, potrivit pentru cursuri'),
+(10, 'Server',    'SRV-02 — Str. Plopilor 60',            'Sibiu',       750.00, NULL, NULL, NULL, 130, 'Liber', 10, '2025-01-15', 'Server backup + statie de streaming');
 SET IDENTITY_INSERT Echipamente OFF;
 GO
 
@@ -303,10 +304,10 @@ SET IDENTITY_INSERT Sesiuni ON;
 INSERT INTO Sesiuni (id_sesiune, id_echipament, id_membru, id_operator, tip_sesiune, data_sesiune, durata_minute, cost_total, incasare, status, observatii) VALUES
 (1,  1,  1,  1,  'Joc',       '2024-03-01', 120, 142, 4.26, 'Finalizata',   'Plata cu cardul aprobata'),
 (2,  2,  2,  3,  'Joc',       '2024-03-20',  90, 310, 9.30, 'Finalizata',   'Sesiune cu plata integrala'),
-(3,  3,  5,  4,  'Joc',       '2024-04-10',  60,  72, 2.16, '\u00cen a\u0219teptare', 'Se asteapta confirmarea platii'),
+(3,  3,  5,  4,  'Joc',       '2024-04-10',  60,  72, 2.16, 'În așteptare', 'Se asteapta confirmarea platii'),
 (4,  4,  6,  2,  'Internet',  '2024-05-05', 300, 2.50, 1.25, 'Finalizata',  'Abonament internet 5 ore'),
 (5,  5,  1,  5,  'Joc',       '2024-06-01', 110,  90, 2.70, 'Finalizata',   'Membru multumit de statie'),
-(6,  6,  7,  6,  'Eveniment', '2024-06-25',  45, 175, 1.75, '\u00cen a\u0219teptare', 'Eveniment privat, avans achitat'),
+(6,  6,  7,  6,  'Eveniment', '2024-06-25',  45, 175, 1.75, 'În așteptare', 'Eveniment privat, avans achitat'),
 (7,  7,  1,  8,  'Joc',       '2024-08-01', 150, 115, 3.45, 'Finalizata',   'Turneu de seara, 3 participanti'),
 (8,  9,  1,  6,  'Joc',       '2024-09-20',  30,  86, 2.58, 'Finalizata',   'Sesiune expres la pranz'),
 (9,  1,  6,  10, 'Joc',       '2024-10-05', 130, 142, 4.26, 'Finalizata',   'A doua sesiune pe aceasta statie'),
@@ -686,18 +687,19 @@ SELECT @hash_admin = LOWER(CONVERT(VARCHAR(64),
 SELECT @hash_user = LOWER(CONVERT(VARCHAR(64),
     HASHBYTES('SHA2_256', CONVERT(VARBINARY(50), '575757')), 2));
 
-DELETE FROM Utilizatori WHERE username IN ('Constantin', 'Maxim');
+-- Sterge atat numele noi, cat si cele vechi (migrare sigura, idempotenta)
+DELETE FROM Utilizatori WHERE username IN ('Alexandru', 'Mihail', 'Constantin', 'Maxim');
 
 INSERT INTO Utilizatori (username, parola_hash, rol, nume_complet, email, activ)
-VALUES ('Constantin', @hash_admin, 'Admin', 'Constantin (Administrator)',
+VALUES ('Alexandru', @hash_admin, 'Admin', 'Alexandru (Administrator)',
         'admin@clubcalculatoare.ro', 1);
 
 INSERT INTO Utilizatori (username, parola_hash, rol, nume_complet, email, activ)
-VALUES ('Maxim', @hash_user, 'User', 'Maxim (Utilizator)',
+VALUES ('Mihail', @hash_user, 'User', 'Mihail (Utilizator)',
         'user@clubcalculatoare.ro', 1);
 
-PRINT '  Username: Constantin | Parola: 121212 | Rol: Admin (Administrator)';
-PRINT '  Username: Maxim      | Parola: 575757 | Rol: User (Utilizator)';
+PRINT '  Username: Alexandru | Parola: 121212 | Rol: Admin (Administrator)';
+PRINT '  Username: Mihail    | Parola: 575757 | Rol: User (Utilizator)';
 GO
 
 /* ----------------------------------------------------------------
@@ -792,12 +794,12 @@ GO
    module, fara modificare/stergere.
    FIX: acordare non-distructiva (doar codurile lipsa) — varianta veche
    (DELETE + INSERT) suprascria la fiecare rulare configurarile facute
-   manual de admin pentru contul de User (Maxim). */
+   manual de admin pentru contul de User (Mihail). */
 INSERT INTO UtilizatoriPermisiuni (id_utilizator, cod_permisiune, acordata_de)
 SELECT u.id_utilizator, p.cod, 'sistem'
 FROM   Utilizatori u
 CROSS JOIN Permisiuni p
-WHERE  u.username = 'Maxim'
+WHERE  u.username = 'Mihail'
   AND  p.cod IN ('MENIU_ECHIPAMENTE', 'FAVORITE')
   AND NOT EXISTS (SELECT 1 FROM UtilizatoriPermisiuni up
                   WHERE up.id_utilizator = u.id_utilizator

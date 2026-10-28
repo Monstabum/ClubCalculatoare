@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
@@ -10,11 +11,12 @@ namespace AppClubCalculatoare.UI
     /// <summary>
     /// Buton personalizat pentru chrome-ul ferestrei (min / max / restore / close).
     /// Desenare custom (fără font-emoji): linii și dreptunghiuri vectoriale, stări
-    /// hover/pressed. Butonul „Închide\" are roșu de accent la hover, ca pe Win11.
-    /// Stil „Neon Lobby\" — culori preluate din <see cref="MaterialTheme"/>.
+    /// hover/pressed. Butonul „Închide" primește roșul de accent la hover, ca pe Win11.
+    /// Culorile vin din <see cref="Design"/>.
     /// </summary>
     internal class WindowButton : Control
     {
+        [DefaultValue(WindowButtonKind.Close)]
         public WindowButtonKind Kind { get; set; } = WindowButtonKind.Close;
 
         private bool _hover;
@@ -27,7 +29,7 @@ namespace AppClubCalculatoare.UI
                      ControlStyles.OptimizedDoubleBuffer |
                      ControlStyles.ResizeRedraw |
                      ControlStyles.SupportsTransparentBackColor, true);
-            Size = new Size(MaterialTheme.Scale(46), MaterialTheme.Scale(32));
+            Size = new Size(46, 32);
             Cursor = Cursors.Hand;
             BackColor = Color.Transparent;
         }
@@ -46,21 +48,21 @@ namespace AppClubCalculatoare.UI
             var g = e.Graphics;
             g.SmoothingMode = SmoothingMode.AntiAlias;
 
-            Color bg = MaterialTheme.ResolveOpaqueBackground(this, MaterialTheme.Surface);
+            Color bg = Design.ResolveOpaqueBackground(this, Design.Surface);
             g.Clear(bg);
 
             if (_hover || _pressed)
             {
                 Color fill = (Kind == WindowButtonKind.Close)
-                    ? (_pressed ? MaterialTheme.Darker(MaterialTheme.Danger, 0.18f) : MaterialTheme.Danger)
-                    : (_pressed ? MaterialTheme.Darker(MaterialTheme.SurfaceAlt, 0.10f) : MaterialTheme.SurfaceAlt);
+                    ? Design.Danger
+                    : (_pressed ? Design.Alpha(Color.White, 12) : Design.Alpha(Color.White, 8));
                 var rect = new Rectangle(0, 0, Width - 1, Height - 1);
-                using (var path = MaterialTheme.RoundedPath(rect, 5))
+                using (var path = Design.RoundedPath(rect, Design.RadiusSmall))
                 using (var b = new SolidBrush(fill))
                     g.FillPath(b, path);
             }
 
-            Color glyph = _hover ? Color.White : MaterialTheme.TextSecondary;
+            Color glyph = _hover ? Color.White : Design.TextMuted;
             int cx = Width / 2, cy = Height / 2, s = 5;
             using (var pen = new Pen(glyph, 1.6f))
             {

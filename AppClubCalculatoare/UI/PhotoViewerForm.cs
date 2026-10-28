@@ -41,6 +41,12 @@ namespace AppClubCalculatoare
             this.Font = MaterialTheme.FontBody;
 
             InitializeComponent();
+
+            // DPI: scalare uniformă (fereastra este DPI-aware) + titlu închis.
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode       = AutoScaleMode.Dpi;
+            WindowChrome.EnableDarkTitleBar(this);
+
             AfiseazaCurenta();
         }
 

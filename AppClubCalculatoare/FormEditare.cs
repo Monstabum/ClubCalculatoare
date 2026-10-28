@@ -1,11 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Drawing;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using AppClubCalculatoare.UI;
 
@@ -25,10 +27,9 @@ namespace AppClubCalculatoare
     /// Tabele gestionate: Echipamente, Sali, Membri, Operatori,
     ///                    Sesiuni, Rezervari.
     /// </summary>
-    public partial class FormEditare : Form
+    public partial class FormEditare : AsyncFormBase
     {
         private readonly string tabela;
-        private readonly string connectionString;
         private readonly int    idEditare;
         private readonly bool   _readOnly;
         private readonly Dictionary<string, Control> controale =
@@ -60,7 +61,6 @@ namespace AppClubCalculatoare
         public FormEditare(string tabela, string connString, int id, bool readOnly)
         {
             this.tabela           = tabela;
-            this.connectionString = connString;
             this.idEditare        = id;
             this._readOnly        = readOnly;
 
@@ -77,6 +77,11 @@ namespace AppClubCalculatoare
             this.BackColor       = MaterialTheme.Background;
             this.Font            = MaterialTheme.FontBody;
 
+            // DPI: scalare uniformă (fereastra este DPI-aware) + titlu închis.
+            AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
+            AutoScaleMode       = AutoScaleMode.Dpi;
+            WindowChrome.EnableDarkTitleBar(this);
+
             InitializeComponent();
 
             // FIX SelectedIndex: ComboBox-urile legate la DataSource au
@@ -84,14 +89,27 @@ namespace AppClubCalculatoare
             // setarea SelectedIndex/SelectedValue in constructor arunca
             // ArgumentOutOfRangeException ("Value '0' is not valid for
             // 'SelectedIndex'") si SelectValue-ul FK esueaza tacut,
-            // lasand prima valoare gresita. Incarcarea se face in OnLoad,
-            // cand handle-urile exista (Items populat, gasirea functioneaza).
-            if (idEditare > 0)
-                this.Load += (s, e) => IncarcaDateExistente();
+            // lasand prima valoare gresita. Incarcarea se face in OnShown,
+            // dupa popularea asincrona a combo-urilor.
 
             // Q10: dezactiveaza controalele in modul readonly
             if (_readOnly)
-                ApplicheazaModReadOnly();
+                AplicheazaModReadOnly();
+        }
+
+        private readonly List<Func<Task>> _incarcariCombo = new List<Func<Task>>();
+
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+            _ = RunOperationAsync(async ct =>
+            {
+                foreach (Func<Task> incarca in _incarcariCombo)
+                    await incarca();
+
+                if (idEditare > 0)
+                    await IncarcaDateExistenteAsync(ct);
+            }, "Eroare la încărcarea datelor");
         }
 
         private void InitializeComponent()
@@ -320,9 +338,12 @@ namespace AppClubCalculatoare
         {
             if (_galerieFoto == null || !_galerieFoto.AreModificariNesalvate)
                 return;
-            DialogResult raspuns = MessageBox.Show(
+            // FIX BUG-04: dialog propriu cu butoane românești (înainte: Yes/No/Cancel
+            // afișate în limba sistemului de operare).
+            DialogResult raspuns = DialogHelper.Intreaba(this,
+                "Fotografii",
                 "Descrierea fotografiei a fost modificată.\nSalvezi modificarea?",
-                "Fotografii", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                "Salvează", "Nu salva", "Anulează");
             if (raspuns == DialogResult.Yes)
             {
                 if (!_galerieFoto.SalveazaDescriereaCurenta())
@@ -333,13 +354,17 @@ namespace AppClubCalculatoare
         }
 
         // Q10: dezactiveaza toate controalele in modul readonly
-        private void ApplicheazaModReadOnly()
+        private void AplicheazaModReadOnly()
         {
             foreach (var ctrl in controale.Values)
             {
                 ctrl.Enabled = false;
-                if (ctrl is TextBox txt) txt.BackColor =
-                    System.Drawing.Color.FromArgb(245, 245, 245);
+                // FIX vizibilitate: fundalul alb (#F5F5F5) + ForeColor alb
+                // (TextPrimary) faceau textul complet invizibil in modul
+                // „Vizualizare detalii". Folosim suprafata mai jos (Surface)
+                // si pastram textul lizibil — diferenta de fundal semnalizeaza
+                // campul ca fiind needitabil.
+                MaterialUIHelper.StyleInputReadOnly(ctrl);
             }
             foreach (var chk in chkNull.Values) chk.Enabled = false; // FIX_09
         }
@@ -547,12 +572,12 @@ namespace AppClubCalculatoare
             string val = ((TextBox)controale[camp]).Text.Trim();
 
             if (obligatoriu && string.IsNullOrEmpty(val))
-            { erori.Add($"{label} este obligatoriu."); return; }
+            { erori.Add($"Câmpul „{label}” este obligatoriu."); return; }
 
             if (!string.IsNullOrEmpty(val))
             {
-                if (val.Length < min) erori.Add($"{label} trebuie sa aiba cel putin {min} caractere.");
-                if (val.Length > max) erori.Add($"{label} nu poate depasi {max} caractere.");
+                if (val.Length < min) erori.Add($"{label} trebuie să aibă cel puțin {min} caractere.");
+                if (val.Length > max) erori.Add($"{label} nu poate depăși {max} caractere.");
             }
         }
 
@@ -562,7 +587,7 @@ namespace AppClubCalculatoare
             var cmb = (ComboBox)controale[camp];
             if (cmb.SelectedValue == null || cmb.SelectedValue.ToString() == "0" ||
                 cmb.SelectedIndex < 0)
-                erori.Add($"{label} trebuie selectat.");
+                erori.Add($"Câmpul „{label}” trebuie completat.");
         }
 
         private void ValidareCampData(List<string> erori, string camp, string label,
@@ -571,7 +596,7 @@ namespace AppClubCalculatoare
             if (!controale.ContainsKey(camp)) return;
             var dtp = (DateTimePicker)controale[camp];
             if (dtp.Value.Year < minAn || dtp.Value.Year > maxAn)
-                erori.Add($"{label} trebuie sa fie intre {minAn} si {maxAn}.");
+                erori.Add($"{label} trebuie să fie între {minAn} și {maxAn}.");
         }
 
         private void ValidareTelefon(List<string> erori)
@@ -580,7 +605,7 @@ namespace AppClubCalculatoare
             string val = ((TextBox)controale["telefon"]).Text.Trim();
             if (!string.IsNullOrEmpty(val) &&
                 !Regex.IsMatch(val, @"^[\+0-9\s\-\(\)]{7,15}$"))
-                erori.Add("Numarul de telefon are un format invalid.");
+                erori.Add("Numărul de telefon are un format invalid.");
         }
 
         private void ValidareEmail(List<string> erori)
@@ -592,135 +617,126 @@ namespace AppClubCalculatoare
                 if (!Regex.IsMatch(val, @"^[^@\s]+@[^@\s]+\.[^@\s]+$"))
                     erori.Add("Adresa de email are un format invalid.");
                 if (val.Length > 100)
-                    erori.Add("Adresa de email nu poate depasi 100 de caractere.");
+                    erori.Add("Adresa de email nu poate depăși 100 de caractere.");
             }
         }
 
         // ════════════════════════════════════════════════════════════
         //  INCARCARE DATE EXISTENTE
         // ════════════════════════════════════════════════════════════
-        private void IncarcaDateExistente()
+        private async Task IncarcaDateExistenteAsync(CancellationToken ct)
         {
-            try
+            string query = ObtieneQuerySelectPentruTabela();
+            if (string.IsNullOrEmpty(query)) return;
+
+            DataTable dt = await SqlDb.QueryDataTableAsync(
+                query,
+                p => p.Add("@id", SqlDbType.Int).Value = idEditare,
+                ct);
+
+            if (IsDisposed || ct.IsCancellationRequested) return;
+            if (dt.Rows.Count == 0) return;
+
+            DataRow row = dt.Rows[0];
+            foreach (var kvp in controale)
             {
-                using (var conn = new SqlConnection(connectionString))
+                if (!dt.Columns.Contains(kvp.Key)) continue;
+
+                object val = row[kvp.Key];
+                // FIX_09: NULL pentru câmpurile nullable cu N/A → bifează checkbox-ul.
+                if (val == DBNull.Value)
                 {
-                    string query = ObtieneQuerySelectPentruTabela();
-                    if (string.IsNullOrEmpty(query)) return;
+                    if (chkNull.ContainsKey(kvp.Key))
+                        SetNaBifat(kvp.Key, true);
+                    continue;
+                }
 
-                    // FIX: SqlCommand eliberat prin using.
-                    using (var cmd = new SqlCommand(query, conn))
+                Control ctrl = kvp.Value;
+                if (ctrl is TextBox txt)
+                {
+                    // FIX: decimal din BD trebuie formatat invariant ("78.50" nu "78,50"),
+                    // altfel Validare/PARSE cu InvariantCulture vede "78,50" ca 7850 sau invalid
+                    // si Valideaza() raporteaza "mai mare decat 0" / salveaza valori corupte.
+                    if (val is decimal dec) txt.Text = dec.ToString(CultureInfo.InvariantCulture);
+                    else if (val is double dbl) txt.Text = dbl.ToString(CultureInfo.InvariantCulture);
+                    else if (val is float fl) txt.Text = fl.ToString(CultureInfo.InvariantCulture);
+                    else txt.Text = val.ToString();
+                }
+                else if (ctrl is DateTimePicker dtp) dtp.Value = Convert.ToDateTime(val);
+                else if (ctrl is NumericUpDown nud)  nud.Value = Convert.ToDecimal(val);
+                else if (ctrl is ComboBox cmb)
+                {
+                    // ComboBox static (tipuri / statusuri): in baza de date
+                    // valoarea este salvata ca text, deci cautam textul afisat.
+                    if (EsteComboStatic(cmb))
                     {
-                        cmd.Parameters.Add("@id", SqlDbType.Int).Value = idEditare;
-                        conn.Open();
-
-                        using (var reader = cmd.ExecuteReader())
-                    {
-                        if (!reader.Read()) return;
-                        foreach (var kvp in controale)
+                        // FIX: FindStringExact necesita handle creat — in constructor handle-ul nu exista inca
+                        // si returneaza -1 fals (de aici "Valoarea 'PC Gaming' ... nu mai exista").
+                        // Cautam direct in DataTable (case-insensitive, trim) si fallback pe GetItemText.
+                        string target = val.ToString().Trim();
+                        int idx = -1;
+                        if (cmb.DataSource is DataTable dtStatic)
                         {
-                            int ordinal;
-                            try { ordinal = reader.GetOrdinal(kvp.Key); }
-                            catch { continue; }
-
-                            object val = reader[ordinal];
-                            // FIX_09: NULL pentru câmpurile nullable cu N/A → bifează checkbox-ul.
-                            if (val == DBNull.Value)
+                            for (int i = 0; i < dtStatic.Rows.Count; i++)
                             {
-                                if (chkNull.ContainsKey(kvp.Key))
-                                    SetNaBifat(kvp.Key, true);
-                                continue;
-                            }
-
-                            Control ctrl = kvp.Value;
-                            if      (ctrl is TextBox txt)
-                            {
-                                // FIX: decimal din BD trebuie formatat invariant ("78.50" nu "78,50"),
-                                // altfel Validare/PARSE cu InvariantCulture vede "78,50" ca 7850 sau invalid
-                                // si Valideaza() raporteaza "mai mare decat 0" / salveaza valori corupte.
-                                if (val is decimal dec) txt.Text = dec.ToString(CultureInfo.InvariantCulture);
-                                else if (val is double dbl) txt.Text = dbl.ToString(CultureInfo.InvariantCulture);
-                                else if (val is float fl) txt.Text = fl.ToString(CultureInfo.InvariantCulture);
-                                else txt.Text = val.ToString();
-                            }
-                            else if (ctrl is DateTimePicker dtp) dtp.Value = Convert.ToDateTime(val);
-                            else if (ctrl is NumericUpDown nud)  nud.Value = Convert.ToDecimal(val);
-                            else if (ctrl is ComboBox cmb)
-                            {
-                                // ComboBox static (tipuri / statusuri): in baza de date
-                                // valoarea este salvata ca text, deci cautam textul afisat.
-                                if (EsteComboStatic(cmb))
-                                {
-                                    // FIX: FindStringExact necesita handle creat — in constructor handle-ul nu exista inca
-                                    // si returneaza -1 fals (de aici "Valoarea 'PC Gaming' ... nu mai exista").
-                                    // Cautam direct in DataTable (case-insensitive, trim) si fallback pe GetItemText.
-                                    string target = val.ToString().Trim();
-                                    int idx = -1;
-                                    if (cmb.DataSource is DataTable dtStatic)
-                                    {
-                                        for (int i = 0; i < dtStatic.Rows.Count; i++)
-                                        {
-                                            string den = dtStatic.Rows[i]["denumire"]?.ToString().Trim();
-                                            if (string.Equals(den, target, StringComparison.OrdinalIgnoreCase))
-                                            { idx = i; break; }
-                                        }
-                                    }
-                                    if (idx < 0)
-                                        idx = cmb.FindStringExact(target);
-                                    if (idx < 0)
-                                    {
-                                        for (int i = 0; i < cmb.Items.Count; i++)
-                                        {
-                                            string itemText = cmb.GetItemText(cmb.Items[i]).Trim();
-                                            if (string.Equals(itemText, target, StringComparison.OrdinalIgnoreCase))
-                                            { idx = i; break; }
-                                        }
-                                    }
-                                    if (idx < 0)
-                                    {
-                                        AppLogger.Warn($"Valoare '{val}' lipseste din combo '{kvp.Key}' (tabela {tabela})", "FormEditare");
-                                        MessageBox.Show(
-                                            $"Valoarea '{val}' pentru câmpul '{kvp.Key}' nu mai există în listă.\n" +
-                                            "A fost selectată prima valoare — verifică înainte de salvare!",
-                                            "Valoare lipsă", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                                        if (cmb.Items.Count > 0) cmb.SelectedIndex = 0;
-                                        else cmb.SelectedIndex = -1;
-                                    }
-                                    // Plasa de siguranta: idx vine din DataTable,
-                                    // dar SelectedIndex e valid doar in Items
-                                    // (altfel ArgumentOutOfRangeException).
-                                    else if (idx < cmb.Items.Count) cmb.SelectedIndex = idx;
-                                    else
-                                    {
-                                        AppLogger.Warn($"Idx {idx} in afara Items ({cmb.Items.Count}) pentru combo '{kvp.Key}' — lasat neselectat.", "FormEditare");
-                                        cmb.SelectedIndex = -1;
-                                    }
-                                }
-                                else
-                                {
-                                    // FIX_05: verificăm că valoarea FK există efectiv în sursă — altfel SelectedValue rămâne null și salvarea ar eșua pe NOT NULL/FK.
-                                    cmb.SelectedValue = val;
-                                    if (cmb.SelectedValue == null)
-                                    {
-                                        AppLogger.Warn($"Valoare FK '{val}' lipseste din combo '{kvp.Key}' (tabela {tabela})", "FormEditare");
-                                        MessageBox.Show(
-                                            $"Valoarea FK '{val}' pentru câmpul '{kvp.Key}' nu mai există în listă.\n" +
-                                            "Selectează o valoare validă înainte de salvare!",
-                                            "Valoare lipsă", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                                        if (cmb.Items.Count > 0) cmb.SelectedIndex = 0;
-                                    }
-                                }
+                                string den = dtStatic.Rows[i]["denumire"]?.ToString().Trim();
+                                if (string.Equals(den, target, StringComparison.OrdinalIgnoreCase))
+                                { idx = i; break; }
                             }
                         }
+                        if (idx < 0)
+                            idx = cmb.FindStringExact(target);
+                        if (idx < 0)
+                        {
+                            for (int i = 0; i < cmb.Items.Count; i++)
+                            {
+                                string itemText = cmb.GetItemText(cmb.Items[i]).Trim();
+                                if (string.Equals(itemText, target, StringComparison.OrdinalIgnoreCase))
+                                { idx = i; break; }
+                            }
+                        }
+                        if (idx < 0)
+                        {
+                            AppLogger.Warn($"Valoare '{val}' lipseste din combo '{kvp.Key}' (tabela {tabela})", "FormEditare");
+                            MessageBox.Show(
+                                $"Valoarea '{val}' pentru câmpul '{kvp.Key}' nu mai există în listă.\n" +
+                                "A fost selectată prima valoare — verifică înainte de salvare!",
+                                "Valoare lipsă", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            if (cmb.Items.Count > 0) cmb.SelectedIndex = 0;
+                            else cmb.SelectedIndex = -1;
+                        }
+                        // Plasa de siguranta: idx vine din DataTable,
+                        // dar SelectedIndex e valid doar in Items
+                        // (altfel ArgumentOutOfRangeException).
+                        else if (idx < cmb.Items.Count) cmb.SelectedIndex = idx;
+                        else
+                        {
+                            AppLogger.Warn($"Idx {idx} in afara Items ({cmb.Items.Count}) pentru combo '{kvp.Key}' — lasat neselectat.", "FormEditare");
+                            cmb.SelectedIndex = -1;
+                        }
                     }
+                    else
+                    {
+                        // FIX_05: verificăm că valoarea FK există efectiv în sursă — altfel SelectedValue rămâne null și salvarea ar eșua pe NOT NULL/FK.
+                        cmb.SelectedValue = val;
+                        if (cmb.SelectedValue == null)
+                        {
+                            AppLogger.Warn($"Valoare FK '{val}' lipseste din combo '{kvp.Key}' (tabela {tabela})", "FormEditare");
+                            MessageBox.Show(
+                                $"Valoarea FK '{val}' pentru câmpul '{kvp.Key}' nu mai există în listă.\n" +
+                                "Selectează o valoare validă înainte de salvare!",
+                                "Valoare lipsă", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                            // FIX BUG-09: lăsăm câmpul NESELECTAT. Înainte se
+                            // selecta prima înregistrare (ex. Sala #1), deci
+                            // mesajul „selectează o valoare validă" era contrazis
+                            // de comportament, iar o salvare neatentă re-atașa
+                            // înregistrarea la o sală greșită. Acum validarea de
+                            // la salvare (ValidareCampCombo) blochează salvarea
+                            // până când utilizatorul alege explicit.
+                            cmb.SelectedIndex = -1;
+                        }
                     }
                 }
-            }
-            catch (Exception ex)
-            {
-                AppLogger.Error(ex, "FormEditare.IncarcaDateExistente");
-                MessageBox.Show("Eroare la incarcarea datelor: " + ex.Message,
-                    "Eroare", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -741,9 +757,11 @@ namespace AppClubCalculatoare
         // ════════════════════════════════════════════════════════════
         //  SALVARE
         // ════════════════════════════════════════════════════════════
-        private void BtnSalveaza_Click(object sender, EventArgs e)
+        private bool _salvareInCurs;
+
+        private async void BtnSalveaza_Click(object sender, EventArgs e)
         {
-            if (_readOnly) return;
+            if (_readOnly || _salvareInCurs) return;
 
             // ── Sistem drepturi: aparare anti post-injection (nivel backend) ──
             // Chiar daca formularul a fost deschis programatic in mod scriere,
@@ -770,63 +788,69 @@ namespace AppClubCalculatoare
                 return;
             }
 
+            _salvareInCurs = true;
+            UseWaitCursor = true;
             try
             {
-                using (var conn = new SqlConnection(connectionString))
+                int idPropActualizata = 0;
+                string statusNouProp = null;
+                string actiune = idEditare == -1 ? "INSERT" : "UPDATE";
+
+                bool modificat = await SqlDb.InTransactionAsync(async (conn, tr, ct) =>
                 {
-                    conn.Open();
-
-                    int idPropActualizata = 0;
-                    string statusNouProp = null;
-
-                    // Caiet de sarcini 3.1.1 (pct. 4b) si 3.2.6: salvarea sesiunei si
-                    // actualizarea statusului echipamentei se fac intr-o singura
-                    // sesiune SQL - fie se salveaza ambele, fie niciuna.
-                    using (SqlTransaction tr = conn.BeginTransaction())
+                    // Salvarea sesiunii si actualizarea statusului echipamentului
+                    // se fac in aceeasi tranzactie: fie ambele, fie niciuna.
+                    using (SqlCommand cmd = idEditare == -1
+                        ? CreazaComandaInsert(conn)
+                        : CreazaComandaUpdate(conn))
                     {
-                        // FIX: SqlCommand eliberat prin using.
-                        using (SqlCommand cmd = idEditare == -1
-                            ? CreazaComandaInsert(conn)
-                            : CreazaComandaUpdate(conn))
-                        {
-                            cmd.Transaction = tr;
-                            int rowsAffected = cmd.ExecuteNonQuery();
-                            if (rowsAffected == 0)
-                            {
-                                tr.Rollback();
-                                MessageBox.Show("Nicio inregistrare nu a fost modificata.",
-                                    "Atentie", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                                return;
-                            }
-                        }
-
-                        if (tabela == "Sesiuni")
-                            idPropActualizata = ActualizeazaStatusEchipament(conn, tr, out statusNouProp);
-
-                        tr.Commit();
+                        cmd.Transaction = tr;
+                        cmd.CommandTimeout = SqlDb.DefaultTimeoutSeconds;
+                        int rowsAffected = await cmd.ExecuteNonQueryAsync(ct);
+                        if (rowsAffected == 0) return false;
                     }
 
-                    // Q5: Audit trail (dupa commit; un esec de audit nu blocheaza operatia)
-                    string actiune = idEditare == -1 ? "INSERT" : "UPDATE";
-                    SalveazaAudit(conn, tabela, actiune, idEditare);
+                    if (tabela == "Sesiuni")
+                    {
+                        var rezultatStatus = await ActualizeazaStatusEchipamentAsync(
+                            conn, tr, ct);
+                        idPropActualizata = rezultatStatus.Id;
+                        statusNouProp = rezultatStatus.Status;
+                    }
+
+                    // Q5: audit in aceeasi tranzactie (nu mai rămâne operația
+                    // aplicată fără urmă dacă auditul eșuează).
+                    await SalveazaAuditAsync(conn, tr, tabela, actiune, idEditare, ct);
                     if (idPropActualizata > 0)
-                    {
-                        SalveazaAudit(conn, "Echipamente", "UPDATE", idPropActualizata);
-                        AppLogger.Info(
-                            $"Status echipament id={idPropActualizata} -> '{statusNouProp}' " +
-                            $"(sesiune finalizata) by '{SessionInfo.Username}'", "FormEditare");
-                    }
+                        await SalveazaAuditAsync(conn, tr, "Echipamente", "UPDATE",
+                            idPropActualizata, ct);
 
-                    AppLogger.Info($"{actiune} {tabela} id={idEditare} by '{SessionInfo.Username}'",
-                        "FormEditare");
-                        MessageBox.Show(
-                            idEditare == -1
-                                ? "Inregistrare adaugata cu succes!"
-                                : "Inregistrare modificata cu succes!",
-                            "Succes", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        this.DialogResult = DialogResult.OK;
-                    }
+                    return true;
+                });
+
+                if (!modificat)
+                {
+                    MessageBox.Show("Nicio inregistrare nu a fost modificata.",
+                        "Atentie", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    return;
                 }
+
+                if (idPropActualizata > 0)
+                {
+                    AppLogger.Info(
+                        $"Status echipament id={idPropActualizata} -> '{statusNouProp}' " +
+                        $"(sesiune finalizata) by '{SessionInfo.Username}'", "FormEditare");
+                }
+                AppLogger.Info($"{actiune} {tabela} id={idEditare} by '{SessionInfo.Username}'",
+                    "FormEditare");
+
+                MessageBox.Show(
+                    idEditare == -1
+                        ? "Inregistrare adaugata cu succes!"
+                        : "Inregistrare modificata cu succes!",
+                    "Succes", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                this.DialogResult = DialogResult.OK;
+            }
             catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601)
             {
                 AppLogger.Error(ex, "FormEditare.BtnSalveaza");
@@ -846,15 +870,16 @@ namespace AppClubCalculatoare
                 MessageBox.Show("Eroare la salvare: " + ex.Message,
                     "Eroare", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
+            finally
+            {
+                _salvareInCurs = false;
+                if (!IsDisposed) UseWaitCursor = false;
+            }
         }
 
         // ── Q5: Audit trail ────────────────────────────────────────
-        private void SalveazaAudit(SqlConnection conn, string actiune, int idRec)
-        {
-            SalveazaAudit(conn, tabela, actiune, idRec);
-        }
-
-        private void SalveazaAudit(SqlConnection conn, string tabelaAudit, string actiune, int idRec)
+        private async Task SalveazaAuditAsync(SqlConnection conn, SqlTransaction tr,
+            string tabelaAudit, string actiune, int idRec, CancellationToken ct)
         {
             try
             {
@@ -862,13 +887,16 @@ namespace AppClubCalculatoare
                     IF OBJECT_ID('AuditLog','U') IS NOT NULL
                         INSERT INTO AuditLog (tabela, id_inregistrare, actiune, username)
                         VALUES (@tabela, @id, @actiune, @user)";
-                using (var cmd = new SqlCommand(sql, conn))
+                using (var cmd = new SqlCommand(sql, conn, tr)
+                {
+                    CommandTimeout = SqlDb.DefaultTimeoutSeconds
+                })
                 {
                     cmd.Parameters.Add("@tabela",  SqlDbType.NVarChar, 50).Value  = tabelaAudit;
                     cmd.Parameters.Add("@id",      SqlDbType.Int).Value           = idRec < 0 ? 0 : idRec;
                     cmd.Parameters.Add("@actiune", SqlDbType.NVarChar, 10).Value  = actiune;
                     cmd.Parameters.Add("@user",    SqlDbType.NVarChar, 50).Value  = SessionInfo.Username;
-                    cmd.ExecuteNonQuery();
+                    await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)
@@ -895,26 +923,29 @@ namespace AppClubCalculatoare
         /// <summary>
         /// Daca sesiunea salvata are un status care afectează echipamentul
         /// („Finalizata" eliberează stația, „În așteptare" o marchează ocupată),
-        /// actualizeaza automat statusul echipamentei, in aceeasi sesiune SQL
-        /// (caiet 3.1.1 pct. 4b).
+        /// actualizeaza automat statusul echipamentei, in aceeasi tranzactie.
         /// Intoarce id-ul echipamentului modificat sau 0 daca nu s-a schimbat nimic.
         /// </summary>
-        private int ActualizeazaStatusEchipament(SqlConnection conn, SqlTransaction tr,
-            out string statusNou)
+        private async Task<(int Id, string Status)> ActualizeazaStatusEchipamentAsync(
+            SqlConnection conn, SqlTransaction tr, CancellationToken ct)
         {
-            statusNou = StatusEchipamentPentruSesiune(ValoareComboText("status"));
-            if (statusNou == null) return 0;
+            string statusNou = StatusEchipamentPentruSesiune(ValoareComboText("status"));
+            if (statusNou == null) return (0, null);
 
             int idEchipament = Convert.ToInt32(
                 ((ComboBox)controale["id_echipament"]).SelectedValue);
 
             using (var cmd = new SqlCommand(
                 @"UPDATE Echipamente SET status = @status
-                  WHERE id_echipament = @id AND status <> @status", conn, tr))
+                  WHERE id_echipament = @id AND status <> @status", conn, tr)
+            {
+                CommandTimeout = SqlDb.DefaultTimeoutSeconds
+            })
             {
                 cmd.Parameters.Add("@status", SqlDbType.NVarChar, 20).Value = statusNou;
                 cmd.Parameters.Add("@id",     SqlDbType.Int).Value          = idEchipament;
-                return cmd.ExecuteNonQuery() > 0 ? idEchipament : 0;
+                int rows = await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+                return (rows > 0 ? idEchipament : 0, statusNou);
             }
         }
 
@@ -1232,7 +1263,7 @@ namespace AppClubCalculatoare
                 MaxLength = 500,
                 Font      = MaterialTheme.FontBody,
                 ForeColor = MaterialTheme.TextPrimary,
-                BackColor = Color.White,
+                BackColor = MaterialTheme.SurfaceAlt,
                 BorderStyle = BorderStyle.FixedSingle,
                 Anchor    = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right
             };
@@ -1255,6 +1286,7 @@ namespace AppClubCalculatoare
                 MaxDate  = DateTime.Today,   // nu permite date din viitor
                 Value    = DateTime.Today
             };
+            MaterialUIHelper.StyleInput(dtp);
             parent.Controls.Add(dtp);
             controale[nume] = dtp;
         }
@@ -1270,6 +1302,7 @@ namespace AppClubCalculatoare
                 Format   = DateTimePickerFormat.Short,
                 Font     = MaterialTheme.FontBody
             };
+            MaterialUIHelper.StyleInput(dtp);
             parent.Controls.Add(dtp);
             controale[nume] = dtp;
         }
@@ -1289,6 +1322,7 @@ namespace AppClubCalculatoare
                 Font         = MaterialTheme.FontBody,
                 Value        = DateTime.Now
             };
+            MaterialUIHelper.StyleInput(dtp);
             parent.Controls.Add(dtp);
             controale[nume] = dtp;
         }
@@ -1306,6 +1340,7 @@ namespace AppClubCalculatoare
                 Maximum  = maxim,
                 Font     = MaterialTheme.FontBody
             };
+            MaterialUIHelper.StyleInput(nud);
             if (valoareImplicita >= minim && valoareImplicita <= maxim)
                 nud.Value = valoareImplicita;
 
@@ -1328,6 +1363,7 @@ namespace AppClubCalculatoare
                 Maximum  = maxim,
                 Font     = MaterialTheme.FontBody
             };
+            MaterialUIHelper.StyleInput(nud);
             if (valoareImplicita >= minim && valoareImplicita <= maxim)
                 nud.Value = valoareImplicita;
             parent.Controls.Add(nud);
@@ -1376,7 +1412,7 @@ namespace AppClubCalculatoare
                 Text     = "0",
                 Font     = MaterialTheme.FontBody,
                 ForeColor = MaterialTheme.TextPrimary,
-                BackColor = Color.White,
+                BackColor = MaterialTheme.SurfaceAlt,
                 BorderStyle = BorderStyle.FixedSingle
             };
             parent.Controls.Add(txt);
@@ -1384,7 +1420,7 @@ namespace AppClubCalculatoare
         }
 
         private void AdaugaCombo(Panel parent, string label, string nume,
-            int y, int lw, int cw, Action<ComboBox> loader)
+            int y, int lw, int cw, Func<ComboBox, Task> loader)
         {
             AdaugaLabel(parent, label, y, lw);
             var cmb = new ComboBox
@@ -1395,7 +1431,8 @@ namespace AppClubCalculatoare
                 DropDownStyle = ComboBoxStyle.DropDownList,
                 Font          = MaterialTheme.FontBody
             };
-            loader(cmb);
+            MaterialUIHelper.StyleInput(cmb);
+            _incarcariCombo.Add(() => loader(cmb));
             parent.Controls.Add(cmb);
             controale[nume] = cmb;
         }
@@ -1413,6 +1450,7 @@ namespace AppClubCalculatoare
                 cmb.DataSource    = CreeazaTabelOptiuni(optiuni);
                 cmb.DisplayMember = "denumire";
                 cmb.ValueMember   = "id";
+                return Task.CompletedTask;
             });
         }
 
@@ -1456,39 +1494,32 @@ namespace AppClubCalculatoare
         }
 
         // ── Incarcare ComboBox-uri din baza de date ─────────────────
-        private void IncarcaSali(ComboBox cmb)
-            => IncarcaCombo(cmb, "SELECT id_sala, nume_sala FROM Sali ORDER BY nume_sala",
+        private Task IncarcaSali(ComboBox cmb)
+            => IncarcaComboAsync(cmb, "SELECT id_sala, nume_sala FROM Sali ORDER BY nume_sala",
                 "id_sala", "nume_sala");
-        private void IncarcaOperatori(ComboBox cmb)
-            => IncarcaCombo(cmb,
+        private Task IncarcaOperatori(ComboBox cmb)
+            => IncarcaComboAsync(cmb,
                 "SELECT id_operator, nume + ' ' + prenume AS n FROM Operatori ORDER BY nume",
                 "id_operator", "n");
-        private void IncarcaEchipamente(ComboBox cmb)
-            => IncarcaCombo(cmb,
+        private Task IncarcaEchipamente(ComboBox cmb)
+            => IncarcaComboAsync(cmb,
                 "SELECT id_echipament, denumire + ' (' + oras + ')' AS n FROM Echipamente ORDER BY oras, denumire",
                 "id_echipament", "n");
-        private void IncarcaMembri(ComboBox cmb)
-            => IncarcaCombo(cmb,
+        private Task IncarcaMembri(ComboBox cmb)
+            => IncarcaComboAsync(cmb,
                 "SELECT id_membru, nume + ' ' + prenume AS n FROM Membri ORDER BY nume",
                 "id_membru", "n");
 
-        private void IncarcaCombo(ComboBox cmb, string query,
+        private async Task IncarcaComboAsync(ComboBox cmb, string query,
             string valueMember, string displayMember)
         {
             try
             {
-                using (var conn = new SqlConnection(connectionString))
-                {
-                    // FIX: SqlDataAdapter eliberat prin using.
-                    using (var da = new SqlDataAdapter(query, conn))
-                    {
-                        var dt = new DataTable();
-                        da.Fill(dt);
-                        cmb.DataSource    = dt;
-                        cmb.DisplayMember = displayMember;
-                        cmb.ValueMember   = valueMember;
-                    }
-                }
+                DataTable dt = await SqlDb.QueryDataTableAsync(query);
+                if (cmb.IsDisposed) return;
+                cmb.DataSource    = dt;
+                cmb.DisplayMember = displayMember;
+                cmb.ValueMember   = valueMember;
             }
             catch (Exception ex)
             {

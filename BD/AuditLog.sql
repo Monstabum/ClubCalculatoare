@@ -62,8 +62,8 @@ GO
 -- Optional: actualizeaza email-urile utilizatorilor existenti
 -- (inlocuieste cu adresele reale)
 -- ────────────────────────────────────────────────────────────────
--- UPDATE Utilizatori SET email = 'admin@clubcalculatoare.ro' WHERE username = 'Constantin';
--- UPDATE Utilizatori SET email = 'user@clubcalculatoare.ro'  WHERE username = 'Maxim';
+-- UPDATE Utilizatori SET email = 'admin@clubcalculatoare.ro' WHERE username = 'Alexandru';
+-- UPDATE Utilizatori SET email = 'user@clubcalculatoare.ro'  WHERE username = 'Mihail';
 -- GO
 
 -- ────────────────────────────────────────────────────────────────

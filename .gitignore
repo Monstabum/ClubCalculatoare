@@ -6,3 +6,13 @@ obj/
 # Fișiere locale de utilizator Visual Studio
 *.user
 *.suo
+
+# Log tehnic generat de BD\Instaleaza_BD.bat
+BD/bd_log.txt
+
+# Capturi și dovezi de testare (rămân doar local)
+Testare_Dovezi/
+
+# Fișiere temporare și copii de siguranță
+*.bak
+extracted.txt

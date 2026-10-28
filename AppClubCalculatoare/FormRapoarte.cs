@@ -1,12 +1,13 @@
 using System;
 using System.Data;
-using System.Data.SqlClient;
 using System.Drawing;
 using System.Drawing.Printing;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using AppClubCalculatoare.UI;
 
@@ -21,7 +22,7 @@ namespace AppClubCalculatoare
     ///   Q11 — "Top operatori după încasare" include si operatorii cu 0 incasare,
     ///          HAVING eliminat, ISNULL aplicat, coloana RANK() adaugata.
     /// </summary>
-    public partial class FormRapoarte : Form
+    public partial class FormRapoarte : AsyncFormBase
     {
         private readonly string connectionString;
         private DataGridView dgvRapoarte;
@@ -50,6 +51,11 @@ namespace AppClubCalculatoare
             this.Size             = new Size(1000, 650);
             this.StartPosition    = FormStartPosition.CenterParent;
             InitializeComponent();
+
+            // DPI: scalare uniformă (fereastra este DPI-aware) + titlu închis.
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode       = AutoScaleMode.Dpi;
+            WindowChrome.EnableDarkTitleBar(this);
         }
 
         private void InitializeComponent()
@@ -124,7 +130,12 @@ namespace AppClubCalculatoare
                 AutoSizeMode = AutoSizeMode.GrowAndShrink,
                 ColumnCount = 1,
                 RowCount = 2,
-                BackColor = Color.White,
+                // Suprafata petrol (nu alb): pe tema inchisa o bara alba
+                // atarna imediat sub header si rupea unitatea vizuala; in
+                // plus, butoanele Material isi rezolva fundalul mergand
+                // pe lancul de parinti pana la prima culoare opaca — deci
+                // ar fi fost desenate tot pe alb.
+                BackColor = MaterialTheme.Surface,
                 Padding = new Padding(16, 10, 16, 10),
                 Margin = new Padding(0)
             };
@@ -180,7 +191,10 @@ namespace AppClubCalculatoare
             {
                 int latime = Math.Max(100,
                     TextRenderer.MeasureText(rap.Text, MaterialTheme.FontButton).Width + 32);
-                var btn = MaterialUIHelper.Button(rap.Text, MaterialButtonStyle.Primary, latime, 34);
+                // Secundar, nu Primary: 7 butoane cyan ar domina ecranul și ar
+                // transforma accentul într-un fundal. Accentul rămâne
+                // pentru acțiunea principală a fiecărui ecran.
+                var btn = MaterialUIHelper.Button(rap.Text, MaterialButtonStyle.Secondary, latime, 32);
                 btn.Tag = rap.Key;
                 btn.Margin = new Padding(0, 0, 8, 8);
                 btn.Click += BtnRaport_Click;
@@ -207,6 +221,7 @@ namespace AppClubCalculatoare
             cmbTipEchipament.Items.AddRange(new object[]
                 { "Toate", "PC Gaming", "Consola", "VR", "Server", "Simulator" });
             cmbTipEchipament.SelectedIndex = 0;
+            MaterialUIHelper.StyleInput(cmbTipEchipament);
             panelFiltre.Controls.Add(cmbTipEchipament);
 
             var lblFiltruLuna = new Label
@@ -231,11 +246,13 @@ namespace AppClubCalculatoare
                 // FIX_21: lunile în română (ro-RO), nu în limba OS-ului.
                 cmbLuna.Items.Add(new DateTime(2025, i, 1).ToString("MMMM", new CultureInfo("ro-RO")));
             cmbLuna.SelectedIndex = 0;
+            MaterialUIHelper.StyleInput(cmbLuna);
             panelFiltre.Controls.Add(cmbLuna);
 
             var btnAplicaFiltru = MaterialUIHelper.Button("Aplică", MaterialButtonStyle.Success, 90, 28);
             btnAplicaFiltru.Location = new Point(382, 1);
-            btnAplicaFiltru.Click += (s, e) => EfectueazaRaport("Echipamente disponibile");
+            btnAplicaFiltru.Click += async (s, e) =>
+                await EfectueazaRaportAsync("Echipamente disponibile");
             panelFiltre.Controls.Add(btnAplicaFiltru);
 
             // ── Header colorat (Dock.Top) — adaugat ULTIMUL ─────────
@@ -248,7 +265,7 @@ namespace AppClubCalculatoare
         // ════════════════════════════════════════════════════════════
         //  HANDLER BUTOANE RAPOARTE
         // ════════════════════════════════════════════════════════════
-        private void BtnRaport_Click(object sender, EventArgs e)
+        private async void BtnRaport_Click(object sender, EventArgs e)
         {
             string raport = ((Button)sender).Tag.ToString();
 
@@ -259,45 +276,53 @@ namespace AppClubCalculatoare
             panelFiltre.Parent?.PerformLayout();
             this.PerformLayout();
 
-            EfectueazaRaport(raport);
+            await EfectueazaRaportAsync(raport);
         }
 
-        private void EfectueazaRaport(string raport)
+        private async Task EfectueazaRaportAsync(string raport)
         {
             string query = BuildQuery(raport);
             if (string.IsNullOrEmpty(query)) return;
 
+            // Filtrele se citesc pe UI-thread inainte de await.
+            string tip = null;
+            int? luna = null;
+            if (raport == "Echipamente disponibile")
+            {
+                if (cmbTipEchipament != null && cmbTipEchipament.SelectedIndex > 0)
+                    tip = cmbTipEchipament.SelectedItem.ToString();
+                if (cmbLuna != null && cmbLuna.SelectedIndex > 0)
+                    luna = cmbLuna.SelectedIndex;
+            }
+
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    // FIX_07: comanda parametrizată pentru raportul cu filtre (anti SQL-injection la DropDownStyle=DropDown).
-                    using (var cmd = new SqlCommand(query, conn))
+                DataTable dt = await SqlDb.QueryDataTableAsync(
+                    query,
+                    p =>
                     {
-                        if (raport == "Echipamente disponibile")
-                        {
-                            if (cmbTipEchipament != null && cmbTipEchipament.SelectedIndex > 0)
-                                cmd.Parameters.Add("@tip", SqlDbType.NVarChar, 30).Value = cmbTipEchipament.SelectedItem.ToString();
-                            else
-                                cmd.Parameters.Add("@tip", SqlDbType.NVarChar, 30).Value = DBNull.Value;
-                            if (cmbLuna != null && cmbLuna.SelectedIndex > 0)
-                                cmd.Parameters.Add("@luna", SqlDbType.Int).Value = cmbLuna.SelectedIndex;
-                            else
-                                cmd.Parameters.Add("@luna", SqlDbType.Int).Value = DBNull.Value;
-                        }
-                        var da = new SqlDataAdapter(cmd);
-                        DataTable dt = new DataTable();
-                        da.Fill(dt);
-                        dgvRapoarte.DataSource = dt;
-                        AjusteazaLatimiColoane();
-                    }
-                }
+                        if (raport != "Echipamente disponibile") return;
+                        p.Add("@tip", SqlDbType.NVarChar, 30).Value =
+                            (object)tip ?? DBNull.Value;
+                        p.Add("@luna", SqlDbType.Int).Value =
+                            luna.HasValue ? (object)luna.Value : DBNull.Value;
+                    },
+                    default,
+                    SqlDb.ReportTimeoutSeconds);
+
+                if (IsDisposed) return;
+
+                dgvRapoarte.DataSource = dt;
+                AjusteazaLatimiColoane();
             }
             catch (Exception ex)
             {
-                AppLogger.Error(ex, "FormRapoarte.EfectueazaRaport");
-                MessageBox.Show("Eroare la generarea raportului: " + ex.Message,
-                    "Eroare", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                AppLogger.Error(ex, "FormRapoarte.EfectueazaRaportAsync");
+                if (!IsDisposed)
+                {
+                    MessageBox.Show("Eroare la generarea raportului: " + ex.Message,
+                        "Eroare", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
             }
         }
 
@@ -458,8 +483,11 @@ namespace AppClubCalculatoare
                 // FIX_10: separatorul listei din cultura curentă (RO „;”, EN „,") — CSV-ul se deschide corect în Excel pe orice locale.
                 string sep = System.Globalization.CultureInfo.CurrentCulture.TextInfo.ListSeparator;
 
-                // Header — cu BOM pentru a evita problemele de encoding in Excel
-                sb.Append('\uFEFF');
+                // FIX BUG-05: NU mai adăugăm manual '\uFEFF' aici. Encoding.UTF8
+                // scrie deja BOM-ul la File.WriteAllText, deci rezultatul avea BOM
+                // dublu (EF BB BF EF BB BF), iar Excel/LibreOffice afișa „ï»¿" în
+                // prima celulă. BOM-ul necesar pentru diacritice rămâne cel scris
+                // de Encoding.UTF8.
                 sb.AppendLine(string.Join(sep,
                     dt.Columns.Cast<DataColumn>().Select(c => $"\"{c.ColumnName}\"")));
 
@@ -470,14 +498,23 @@ namespace AppClubCalculatoare
 
                 File.WriteAllText(sfd.FileName, sb.ToString(), Encoding.UTF8);
 
-                if (MessageBox.Show(
+                // FIX BUG-04: dialog propriu cu butoane românești.
+                if (DialogHelper.Confirma(this, "Succes",
                     "Exportul a fost realizat cu succes!\n" + sfd.FileName +
-                    "\n\nVrei sa deschizi fisierul?",
-                    "Succes", MessageBoxButtons.YesNo, MessageBoxIcon.Information)
-                    == DialogResult.Yes)
+                    "\n\nVrei să deschizi fișierul?",
+                    "Deschide", "Nu"))
                 {
-                    // FIX_10: Process.Start poate eșua (fără asociere .csv) — nu prăbușim exportul reușit.
-                    try { System.Diagnostics.Process.Start(sfd.FileName); }
+                    // FIX B2: pe .NET 8 Process.Start(path) folosește implicit UseShellExecute=false,
+                    // deci tratează .csv-ul drept executabil și eșuează cu „The specified executable
+                    // is not a valid application for this OS platform" (nu e lipsa asocierii .csv).
+                    // Cu UseShellExecute=true fișierul se deschide prin shell, cu aplicația asociată.
+                    try
+                    {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(sfd.FileName)
+                        {
+                            UseShellExecute = true
+                        });
+                    }
                     catch (Exception exOpen)
                     {
                         AppLogger.Warn("Nu s-a putut deschide CSV-ul: " + exOpen.Message, "FormRapoarte");
@@ -540,13 +577,14 @@ namespace AppClubCalculatoare
                     // Calcul latimi coloane (sarim prima coloana daca pare ID)
                     int colStart = dt.Columns.Count > 1 ? 1 : 0;
                     int numCols  = dt.Columns.Count - colStart;
+                    if (numCols <= 0) { ev.HasMorePages = false; return; }
                     float colW   = (pageW - left * 2) / numCols;
 
                     // Header coloane
                     float xc = left;
                     for (int ci = colStart; ci < dt.Columns.Count; ci++)
                     {
-                        using (var brushHeader = new SolidBrush(Color.FromArgb(0x3F, 0x51, 0xB5)))
+                        using (var brushHeader = new SolidBrush(Color.FromArgb(0x27, 0x27, 0x2A)))
                             g.FillRectangle(brushHeader,
                                 new RectangleF(xc, y, colW, lineH));
                         g.DrawString(dt.Columns[ci].ColumnName, fontHeader, Brushes.White,
@@ -569,7 +607,7 @@ namespace AppClubCalculatoare
                         }
 
                         if (alt)
-                            using (var brushAlt = new SolidBrush(Color.FromArgb(240, 245, 255)))
+                            using (var brushAlt = new SolidBrush(Color.FromArgb(0xF4, 0xF4, 0xF5)))
                                 g.FillRectangle(brushAlt,
                                     new RectangleF(left, y, pageW - left * 2, lineH));
 
@@ -592,10 +630,14 @@ namespace AppClubCalculatoare
 
                 // PrintPreviewDialog permite atat previzualizarea cat si
                 // salvarea ca PDF (daca e instalata o imprimanta PDF, ex: "Microsoft Print to PDF")
-                PrintPreviewDialog preview = new PrintPreviewDialog();
-                preview.Document    = pd;
-                preview.WindowState = FormWindowState.Maximized;
-                preview.ShowDialog();
+                // FIX BUG-14: dialogul nu era eliberat (fără using) → la fiecare
+                // previzualizare rămâneau în urmă handle-uri GDI/ferestre ascunse.
+                using (var preview = new PrintPreviewDialog())
+                {
+                    preview.Document    = pd;
+                    preview.WindowState = FormWindowState.Maximized;
+                    preview.ShowDialog();
+                }
             }
             AppLogger.Info($"Tiparire raport: {dt.Rows.Count} randuri", "FormRapoarte");
         }

@@ -60,7 +60,7 @@ namespace AppClubCalculatoare
             // 
             // header
             // 
-            this.header.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)63))), ((int)(((byte)81))), ((int)(((byte)181))));
+            this.header.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)37))), ((int)(((byte)99))), ((int)(((byte)235))));
             this.header.Controls.Add(this.lblTitluHeader);
             this.header.Controls.Add(this.lblSubHeader);
             this.header.Dock = System.Windows.Forms.DockStyle.Top;
@@ -95,7 +95,7 @@ namespace AppClubCalculatoare
             // 
             // bottomBar
             // 
-            this.bottomBar.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)250))), ((int)(((byte)250))), ((int)(((byte)250))));
+            this.bottomBar.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)11))), ((int)(((byte)16))), ((int)(((byte)26))));
             this.bottomBar.Controls.Add(this.btnSalveaza);
             this.bottomBar.Controls.Add(this.btnAnulare);
             this.bottomBar.Dock = System.Windows.Forms.DockStyle.Bottom;
@@ -132,7 +132,7 @@ namespace AppClubCalculatoare
             // content
             // 
             this.content.AutoScroll = true;
-            this.content.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)245))), ((int)(((byte)247))), ((int)(((byte)250))));
+            this.content.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)15))), ((int)(((byte)20))), ((int)(((byte)32))));
             this.content.Controls.Add(this.card);
             this.content.Dock = System.Windows.Forms.DockStyle.Fill;
             this.content.Location = new System.Drawing.Point(0, 72);
@@ -161,8 +161,9 @@ namespace AppClubCalculatoare
             // lblParolaVeche
             // 
             this.lblParolaVeche.AutoSize = true;
+            this.lblParolaVeche.BackColor = System.Drawing.Color.Transparent;
             this.lblParolaVeche.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-            this.lblParolaVeche.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)117))), ((int)(((byte)117))), ((int)(((byte)117))));
+            this.lblParolaVeche.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)148))), ((int)(((byte)163))), ((int)(((byte)184))));
             this.lblParolaVeche.Location = new System.Drawing.Point(20, 16);
             this.lblParolaVeche.Name = "lblParolaVeche";
             this.lblParolaVeche.Size = new System.Drawing.Size(100, 15);
@@ -173,10 +174,10 @@ namespace AppClubCalculatoare
             // 
             this.txtParolaVeche.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.txtParolaVeche.BackColor = System.Drawing.Color.White;
+            this.txtParolaVeche.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)28))), ((int)(((byte)38))), ((int)(((byte)58))));
             this.txtParolaVeche.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.txtParolaVeche.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.txtParolaVeche.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)33))), ((int)(((byte)33))), ((int)(((byte)33))));
+            this.txtParolaVeche.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)241))), ((int)(((byte)245))), ((int)(((byte)249))));
             this.txtParolaVeche.Location = new System.Drawing.Point(20, 36);
             this.txtParolaVeche.MaxLength = 100;
             this.txtParolaVeche.Name = "txtParolaVeche";
@@ -187,8 +188,9 @@ namespace AppClubCalculatoare
             // lblParolaNoua
             // 
             this.lblParolaNoua.AutoSize = true;
+            this.lblParolaNoua.BackColor = System.Drawing.Color.Transparent;
             this.lblParolaNoua.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-            this.lblParolaNoua.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)117))), ((int)(((byte)117))), ((int)(((byte)117))));
+            this.lblParolaNoua.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)148))), ((int)(((byte)163))), ((int)(((byte)184))));
             this.lblParolaNoua.Location = new System.Drawing.Point(20, 76);
             this.lblParolaNoua.Name = "lblParolaNoua";
             this.lblParolaNoua.Size = new System.Drawing.Size(90, 15);
@@ -199,10 +201,10 @@ namespace AppClubCalculatoare
             // 
             this.txtParolaNoua.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.txtParolaNoua.BackColor = System.Drawing.Color.White;
+            this.txtParolaNoua.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)28))), ((int)(((byte)38))), ((int)(((byte)58))));
             this.txtParolaNoua.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.txtParolaNoua.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.txtParolaNoua.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)33))), ((int)(((byte)33))), ((int)(((byte)33))));
+            this.txtParolaNoua.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)241))), ((int)(((byte)245))), ((int)(((byte)249))));
             this.txtParolaNoua.Location = new System.Drawing.Point(20, 96);
             this.txtParolaNoua.MaxLength = 100;
             this.txtParolaNoua.Name = "txtParolaNoua";
@@ -213,8 +215,9 @@ namespace AppClubCalculatoare
             // lblConfirmare
             // 
             this.lblConfirmare.AutoSize = true;
+            this.lblConfirmare.BackColor = System.Drawing.Color.Transparent;
             this.lblConfirmare.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-            this.lblConfirmare.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)117))), ((int)(((byte)117))), ((int)(((byte)117))));
+            this.lblConfirmare.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)148))), ((int)(((byte)163))), ((int)(((byte)184))));
             this.lblConfirmare.Location = new System.Drawing.Point(20, 136);
             this.lblConfirmare.Name = "lblConfirmare";
             this.lblConfirmare.Size = new System.Drawing.Size(150, 15);
@@ -225,10 +228,10 @@ namespace AppClubCalculatoare
             // 
             this.txtConfirmare.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.txtConfirmare.BackColor = System.Drawing.Color.White;
+            this.txtConfirmare.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)28))), ((int)(((byte)38))), ((int)(((byte)58))));
             this.txtConfirmare.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
             this.txtConfirmare.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.txtConfirmare.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)33))), ((int)(((byte)33))), ((int)(((byte)33))));
+            this.txtConfirmare.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)241))), ((int)(((byte)245))), ((int)(((byte)249))));
             this.txtConfirmare.Location = new System.Drawing.Point(20, 156);
             this.txtConfirmare.MaxLength = 100;
             this.txtConfirmare.Name = "txtConfirmare";
@@ -239,8 +242,9 @@ namespace AppClubCalculatoare
             // lblReguli
             // 
             this.lblReguli.AutoSize = true;
+            this.lblReguli.BackColor = System.Drawing.Color.Transparent;
             this.lblReguli.Font = new System.Drawing.Font("Segoe UI", 9F);
-            this.lblReguli.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)117))), ((int)(((byte)117))), ((int)(((byte)117))));
+            this.lblReguli.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)148))), ((int)(((byte)163))), ((int)(((byte)184))));
             this.lblReguli.Location = new System.Drawing.Point(20, 196);
             this.lblReguli.Name = "lblReguli";
             this.lblReguli.Size = new System.Drawing.Size(260, 15);
@@ -249,7 +253,11 @@ namespace AppClubCalculatoare
             // 
             // lblMesaj
             // 
+            // BackColor/ForeColor sunt obligatorii: fara ele eticheta mosteneste
+            // negrul de sistem, invizibil pe cardul inchis al formei.
+            this.lblMesaj.BackColor = System.Drawing.Color.Transparent;
             this.lblMesaj.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.lblMesaj.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)225))), ((int)(((byte)29))), ((int)(((byte)72))));
             this.lblMesaj.Location = new System.Drawing.Point(20, 218);
             this.lblMesaj.Name = "lblMesaj";
             this.lblMesaj.Size = new System.Drawing.Size(330, 22);
@@ -259,9 +267,9 @@ namespace AppClubCalculatoare
             // FormSchimbareParola
             // 
             this.AcceptButton = this.btnSalveaza;
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)245))), ((int)(((byte)247))), ((int)(((byte)250))));
+            this.AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
+            this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)15))), ((int)(((byte)20))), ((int)(((byte)32))));
             this.CancelButton = this.btnAnulare;
             this.ClientSize = new System.Drawing.Size(424, 409);
             this.Controls.Add(this.content);

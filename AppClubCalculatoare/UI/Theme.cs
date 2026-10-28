@@ -20,8 +20,8 @@ namespace AppClubCalculatoare.UI
         public static Color Text       => MaterialTheme.TextPrimary;  // #F1F5F9
         public static Color TextMuted  => MaterialTheme.TextSecondary;// #94A3B8
         public static Color Border     => MaterialTheme.Divider;      // #233046
-        public static Color Accent     => MaterialTheme.Primary;      // #7C3AED
-        public static Color AccentHover => MaterialTheme.PrimaryDark; // #5B21B6
+        public static Color Accent     => MaterialTheme.Primary;      // #2563EB
+        public static Color AccentHover => MaterialTheme.PrimaryDark; // #1D4ED8
         public static Color Success    => MaterialTheme.Success;
         public static Color Warning    => MaterialTheme.Warning;
         public static Color Danger     => MaterialTheme.Danger;

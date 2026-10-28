@@ -36,503 +36,597 @@ namespace AppClubCalculatoare
         [System.Diagnostics.DebuggerStepThrough]
         private void InitializeComponent()
         {
-            this.topBar = new System.Windows.Forms.Panel();
-            this.pnlLogo = new System.Windows.Forms.Panel();
-            this.lblBrand = new System.Windows.Forms.Label();
-            this.searchBox = new System.Windows.Forms.Panel();
-            this.lblSearchIcon = new System.Windows.Forms.Label();
-            this.txtSearch = new System.Windows.Forms.TextBox();
-            this.userPanel = new System.Windows.Forms.Panel();
-            this.avatar = new System.Windows.Forms.Panel();
-            this.lblInitial = new System.Windows.Forms.Label();
-            this.lblNume = new System.Windows.Forms.Label();
-            this.lblRol = new System.Windows.Forms.Label();
-            this.sidebarPanel = new System.Windows.Forms.Panel();
-            this.contentPanel = new System.Windows.Forms.Panel();
-            this.bottomBar = new System.Windows.Forms.Panel();
-            this.bottomLayout = new System.Windows.Forms.TableLayoutPanel();
-            this.lblStatusUser = new System.Windows.Forms.Label();
-            this.bottomRight = new System.Windows.Forms.FlowLayoutPanel();
-            this.btnParolaBottom = new AppClubCalculatoare.UI.MaterialButton();
-            this.btnDeconBottom = new AppClubCalculatoare.UI.MaterialButton();
-            this.topBar.SuspendLayout();
-            this.searchBox.SuspendLayout();
-            this.userPanel.SuspendLayout();
-            this.avatar.SuspendLayout();
-            this.bottomBar.SuspendLayout();
-            this.bottomLayout.SuspendLayout();
-            this.bottomRight.SuspendLayout();
-            this.navScroll = new System.Windows.Forms.Panel();
-            this.lblSecPrincipal = new System.Windows.Forms.Label();
-            this.navEchipamente = new AppClubCalculatoare.UI.NavButton();
-            this.navSali = new AppClubCalculatoare.UI.NavButton();
-            this.navMembri = new AppClubCalculatoare.UI.NavButton();
-            this.navSesiuni = new AppClubCalculatoare.UI.NavButton();
-            this.navRezervari = new AppClubCalculatoare.UI.NavButton();
-            this.navFavorite = new AppClubCalculatoare.UI.NavButton();
-            this.navCalculator = new AppClubCalculatoare.UI.NavButton();
-            this.lblSecAdministrare = new System.Windows.Forms.Label();
-            this.navOperatori = new AppClubCalculatoare.UI.NavButton();
-            this.navRapoarte = new AppClubCalculatoare.UI.NavButton();
-            this.navUtilizatori = new AppClubCalculatoare.UI.NavButton();
-            this.lblSecCont = new System.Windows.Forms.Label();
-            this.navProfil = new AppClubCalculatoare.UI.NavButton();
-            this.navParola = new AppClubCalculatoare.UI.NavButton();
-            this.navDeconectare = new AppClubCalculatoare.UI.NavButton();
-            this.navScroll.SuspendLayout();
-            this.SuspendLayout();
+            topBar = new System.Windows.Forms.Panel();
+            pnlLogo = new System.Windows.Forms.Panel();
+            lblBrand = new System.Windows.Forms.Label();
+            searchBox = new System.Windows.Forms.Panel();
+            lblSearchIcon = new System.Windows.Forms.Label();
+            txtSearch = new System.Windows.Forms.TextBox();
+            userPanel = new System.Windows.Forms.Panel();
+            avatar = new System.Windows.Forms.Panel();
+            lblInitial = new System.Windows.Forms.Label();
+            lblNume = new System.Windows.Forms.Label();
+            lblRol = new System.Windows.Forms.Label();
+            sidebarPanel = new System.Windows.Forms.Panel();
+            navScroll = new System.Windows.Forms.Panel();
+            lblSecPrincipal = new System.Windows.Forms.Label();
+            navEchipamente = new AppClubCalculatoare.UI.NavButton();
+            navSali = new AppClubCalculatoare.UI.NavButton();
+            navMembri = new AppClubCalculatoare.UI.NavButton();
+            navSesiuni = new AppClubCalculatoare.UI.NavButton();
+            navRezervari = new AppClubCalculatoare.UI.NavButton();
+            navFavorite = new AppClubCalculatoare.UI.NavButton();
+            navCalculator = new AppClubCalculatoare.UI.NavButton();
+            lblSecAdministrare = new System.Windows.Forms.Label();
+            navOperatori = new AppClubCalculatoare.UI.NavButton();
+            navRapoarte = new AppClubCalculatoare.UI.NavButton();
+            navUtilizatori = new AppClubCalculatoare.UI.NavButton();
+            lblSecCont = new System.Windows.Forms.Label();
+            navProfil = new AppClubCalculatoare.UI.NavButton();
+            navParola = new AppClubCalculatoare.UI.NavButton();
+            navDeconectare = new AppClubCalculatoare.UI.NavButton();
+            contentPanel = new System.Windows.Forms.Panel();
+            bottomBar = new System.Windows.Forms.Panel();
+            bottomLayout = new System.Windows.Forms.TableLayoutPanel();
+            lblStatusUser = new System.Windows.Forms.Label();
+            bottomRight = new System.Windows.Forms.FlowLayoutPanel();
+            btnParolaBottom = new AppClubCalculatoare.UI.MaterialButton();
+            btnDeconBottom = new AppClubCalculatoare.UI.MaterialButton();
+            topBar.SuspendLayout();
+            searchBox.SuspendLayout();
+            userPanel.SuspendLayout();
+            avatar.SuspendLayout();
+            sidebarPanel.SuspendLayout();
+            navScroll.SuspendLayout();
+            bottomBar.SuspendLayout();
+            bottomLayout.SuspendLayout();
+            bottomRight.SuspendLayout();
+            SuspendLayout();
             // 
             // topBar
             // 
-            this.topBar.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)22))), ((int)(((byte)30))), ((int)(((byte)46))));
-            this.topBar.Controls.Add(this.pnlLogo);
-            this.topBar.Controls.Add(this.lblBrand);
-            this.topBar.Controls.Add(this.searchBox);
-            this.topBar.Controls.Add(this.userPanel);
-            this.topBar.Dock = System.Windows.Forms.DockStyle.Top;
-            this.topBar.Location = new System.Drawing.Point(0, 0);
-            this.topBar.Name = "topBar";
-            this.topBar.Size = new System.Drawing.Size(1264, 60);
-            this.topBar.TabIndex = 3;
-            this.topBar.Paint += new System.Windows.Forms.PaintEventHandler(this.TopBar_Paint);
-            this.topBar.Resize += new System.EventHandler(this.TopBar_Resize);
+            topBar.BackColor = AppClubCalculatoare.UI.Design.Surface;
+            topBar.Controls.Add(pnlLogo);
+            topBar.Controls.Add(lblBrand);
+            topBar.Controls.Add(searchBox);
+            topBar.Controls.Add(userPanel);
+            topBar.Dock = System.Windows.Forms.DockStyle.Top;
+            topBar.Location = new System.Drawing.Point(0, 0);
+            topBar.Name = "topBar";
+            topBar.Size = new System.Drawing.Size(1264, 56);
+            topBar.TabIndex = 3;
+            topBar.Paint += TopBar_Paint;
+            topBar.Resize += TopBar_Resize;
             // 
             // pnlLogo
             // 
-            this.pnlLogo.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)124))), ((int)(((byte)58))), ((int)(((byte)237))));
-            this.pnlLogo.Location = new System.Drawing.Point(20, 18);
-            this.pnlLogo.Name = "pnlLogo";
-            this.pnlLogo.Size = new System.Drawing.Size(24, 24);
-            this.pnlLogo.TabIndex = 0;
+            pnlLogo.BackColor = AppClubCalculatoare.UI.Design.Accent;
+            pnlLogo.Location = new System.Drawing.Point(20, 16);
+            pnlLogo.Name = "pnlLogo";
+            pnlLogo.Size = new System.Drawing.Size(24, 24);
+            pnlLogo.TabIndex = 0;
             // 
             // lblBrand
             // 
-            this.lblBrand.AutoSize = true;
-            this.lblBrand.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
-            this.lblBrand.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)241))), ((int)(((byte)245))), ((int)(((byte)249))));
-            this.lblBrand.Location = new System.Drawing.Point(54, 18);
-            this.lblBrand.Name = "lblBrand";
-            this.lblBrand.Size = new System.Drawing.Size(240, 21);
-            this.lblBrand.TabIndex = 1;
-            this.lblBrand.Text = "Club de Calculatoare";
+            lblBrand.AutoSize = true;
+            lblBrand.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
+            lblBrand.ForeColor = AppClubCalculatoare.UI.Design.Text;
+            lblBrand.Location = new System.Drawing.Point(56, 14);
+            lblBrand.Name = "lblBrand";
+            lblBrand.Size = new System.Drawing.Size(207, 28);
+            lblBrand.TabIndex = 1;
+            lblBrand.Text = "Club de Calculatoare";
             // 
             // searchBox
             // 
-            this.searchBox.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)15))),  ((int)(((byte)20))),  ((int)(((byte)32))));
-            this.searchBox.Controls.Add(this.lblSearchIcon);
-            this.searchBox.Controls.Add(this.txtSearch);
-            this.searchBox.Location = new System.Drawing.Point(320, 15);
-            this.searchBox.Name = "searchBox";
-            this.searchBox.Size = new System.Drawing.Size(400, 30);
-            this.searchBox.TabIndex = 2;
-            this.searchBox.Paint += new System.Windows.Forms.PaintEventHandler(this.SearchBox_Paint);
+            searchBox.BackColor = AppClubCalculatoare.UI.Design.SurfaceRaised;
+            searchBox.Controls.Add(lblSearchIcon);
+            searchBox.Controls.Add(txtSearch);
+            searchBox.Location = new System.Drawing.Point(320, 13);
+            searchBox.Name = "searchBox";
+            searchBox.Size = new System.Drawing.Size(400, 30);
+            searchBox.TabIndex = 2;
+            searchBox.Paint += SearchBox_Paint;
             // 
             // lblSearchIcon
             // 
-            this.lblSearchIcon.AutoSize = true;
-            this.lblSearchIcon.Font = new System.Drawing.Font("Segoe Fluent Icons", 13F);
-            this.lblSearchIcon.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)148))), ((int)(((byte)163))), ((int)(((byte)184))));
-            this.lblSearchIcon.Location = new System.Drawing.Point(10, 7);
-            this.lblSearchIcon.Name = "lblSearchIcon";
-            this.lblSearchIcon.Size = new System.Drawing.Size(19, 17);
-            this.lblSearchIcon.TabIndex = 0;
-            this.lblSearchIcon.Text = "\uE721";
+            lblSearchIcon.AutoSize = true;
+            lblSearchIcon.Font = new System.Drawing.Font("Segoe Fluent Icons", 12F);
+            lblSearchIcon.ForeColor = AppClubCalculatoare.UI.Design.TextDim;
+            lblSearchIcon.Location = new System.Drawing.Point(10, 7);
+            lblSearchIcon.Name = "lblSearchIcon";
+            lblSearchIcon.Size = new System.Drawing.Size(32, 22);
+            lblSearchIcon.TabIndex = 0;
+            lblSearchIcon.Text = "";
             // 
             // txtSearch
             // 
-            this.txtSearch.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.txtSearch.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)15))),  ((int)(((byte)20))),  ((int)(((byte)32))));
-            this.txtSearch.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.txtSearch.Font = new System.Drawing.Font("Segoe UI", 9.75F);
-            this.txtSearch.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)148))), ((int)(((byte)163))), ((int)(((byte)184))));
-            this.txtSearch.Location = new System.Drawing.Point(34, 5);
-            this.txtSearch.Multiline = true;
-            this.txtSearch.Name = "txtSearch";
-            this.txtSearch.Size = new System.Drawing.Size(350, 20);
-            this.txtSearch.TabIndex = 1;
-            this.txtSearch.WordWrap = false;
-            this.txtSearch.Text = "Caută echipamente, membri, sesiuni...";
-            this.txtSearch.KeyDown += new System.Windows.Forms.KeyEventHandler(this.TxtSearch_KeyDown);
-            this.txtSearch.GotFocus += new System.EventHandler(this.TxtSearch_GotFocus);
-            this.txtSearch.LostFocus += new System.EventHandler(this.TxtSearch_LostFocus);
+            txtSearch.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+            txtSearch.BackColor = AppClubCalculatoare.UI.Design.SurfaceRaised;
+            txtSearch.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            txtSearch.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            txtSearch.ForeColor = AppClubCalculatoare.UI.Design.TextDim;
+            txtSearch.Location = new System.Drawing.Point(34, 5);
+            txtSearch.Multiline = true;
+            txtSearch.Name = "txtSearch";
+            txtSearch.Size = new System.Drawing.Size(350, 20);
+            txtSearch.TabIndex = 1;
+            txtSearch.Text = "Caută...";
+            txtSearch.WordWrap = false;
+            txtSearch.GotFocus += TxtSearch_GotFocus;
+            txtSearch.KeyDown += TxtSearch_KeyDown;
+            txtSearch.LostFocus += TxtSearch_LostFocus;
             // 
             // userPanel
             // 
-            this.userPanel.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-            this.userPanel.BackColor = System.Drawing.Color.Transparent;
-            this.userPanel.Controls.Add(this.avatar);
-            this.userPanel.Controls.Add(this.lblNume);
-            this.userPanel.Controls.Add(this.lblRol);
-            this.userPanel.Location = new System.Drawing.Point(994, 8);
-            this.userPanel.Name = "userPanel";
-            this.userPanel.Size = new System.Drawing.Size(230, 44);
-            this.userPanel.TabIndex = 3;
+            userPanel.Anchor = System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right;
+            userPanel.BackColor = System.Drawing.Color.Transparent;
+            userPanel.Controls.Add(avatar);
+            userPanel.Controls.Add(lblNume);
+            userPanel.Controls.Add(lblRol);
+            userPanel.Location = new System.Drawing.Point(994, 6);
+            userPanel.Name = "userPanel";
+            userPanel.Size = new System.Drawing.Size(230, 44);
+            userPanel.TabIndex = 3;
             // 
             // avatar
             // 
-            this.avatar.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)34))), ((int)(((byte)211))), ((int)(((byte)238))));
-            this.avatar.Controls.Add(this.lblInitial);
-            this.avatar.Location = new System.Drawing.Point(0, 3);
-            this.avatar.Name = "avatar";
-            this.avatar.Size = new System.Drawing.Size(38, 38);
-            this.avatar.TabIndex = 0;
+            avatar.BackColor = AppClubCalculatoare.UI.Design.Accent;
+            avatar.Controls.Add(lblInitial);
+            avatar.Location = new System.Drawing.Point(0, 6);
+            avatar.Name = "avatar";
+            avatar.Size = new System.Drawing.Size(32, 32);
+            avatar.TabIndex = 0;
             // 
             // lblInitial
             // 
-            this.lblInitial.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lblInitial.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
-            this.lblInitial.ForeColor = System.Drawing.Color.White;
-            this.lblInitial.Location = new System.Drawing.Point(0, 0);
-            this.lblInitial.Name = "lblInitial";
-            this.lblInitial.Size = new System.Drawing.Size(38, 38);
-            this.lblInitial.TabIndex = 0;
-            this.lblInitial.Text = "?";
-            this.lblInitial.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
+            lblInitial.Dock = System.Windows.Forms.DockStyle.Fill;
+            lblInitial.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+            lblInitial.ForeColor = AppClubCalculatoare.UI.Design.AccentText;
+            lblInitial.Location = new System.Drawing.Point(0, 0);
+            lblInitial.Name = "lblInitial";
+            lblInitial.Size = new System.Drawing.Size(32, 32);
+            lblInitial.TabIndex = 0;
+            lblInitial.Text = "?";
+            lblInitial.TextAlign = System.Drawing.ContentAlignment.MiddleCenter;
             // 
             // lblNume
             // 
-            this.lblNume.AutoSize = true;
-            this.lblNume.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
-            this.lblNume.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)241))), ((int)(((byte)245))), ((int)(((byte)249))));
-            this.lblNume.Location = new System.Drawing.Point(48, 6);
-            this.lblNume.Name = "lblNume";
-            this.lblNume.Size = new System.Drawing.Size(45, 17);
-            this.lblNume.TabIndex = 1;
+            lblNume.AutoSize = true;
+            lblNume.Font = new System.Drawing.Font("Segoe UI", 9.5F, System.Drawing.FontStyle.Bold);
+            lblNume.ForeColor = AppClubCalculatoare.UI.Design.Text;
+            lblNume.Location = new System.Drawing.Point(42, 8);
+            lblNume.Name = "lblNume";
+            lblNume.Size = new System.Drawing.Size(0, 23);
+            lblNume.TabIndex = 1;
             // 
             // lblRol
             // 
-            this.lblRol.AutoSize = true;
-            this.lblRol.Font = new System.Drawing.Font("Segoe UI", 8.25F);
-            this.lblRol.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)148))), ((int)(((byte)163))), ((int)(((byte)184))));
-            this.lblRol.Location = new System.Drawing.Point(48, 24);
-            this.lblRol.Name = "lblRol";
-            this.lblRol.Size = new System.Drawing.Size(65, 13);
-            this.lblRol.TabIndex = 2;
-            this.lblRol.Text = "Utilizator";
+            lblRol.AutoSize = true;
+            lblRol.Font = new System.Drawing.Font("Segoe UI", 8.25F);
+            lblRol.ForeColor = AppClubCalculatoare.UI.Design.TextMuted;
+            lblRol.Location = new System.Drawing.Point(42, 26);
+            lblRol.Name = "lblRol";
+            lblRol.Size = new System.Drawing.Size(64, 19);
+            lblRol.TabIndex = 2;
+            lblRol.Text = "Utilizator";
             // 
             // sidebarPanel
             // 
-            this.sidebarPanel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)19))), ((int)(((byte)26))), ((int)(((byte)41))));
-            this.sidebarPanel.Controls.Add(this.navScroll);
-            this.sidebarPanel.Dock = System.Windows.Forms.DockStyle.Left;
-            this.sidebarPanel.Location = new System.Drawing.Point(0, 60);
-            this.sidebarPanel.Name = "sidebarPanel";
-            this.sidebarPanel.Size = new System.Drawing.Size(230, 687);
-            this.sidebarPanel.TabIndex = 2;
-            this.sidebarPanel.Paint += new System.Windows.Forms.PaintEventHandler(this.SidebarPanel_Paint);
+            sidebarPanel.BackColor = AppClubCalculatoare.UI.Design.Bg;
+            sidebarPanel.Controls.Add(navScroll);
+            sidebarPanel.Dock = System.Windows.Forms.DockStyle.Left;
+            sidebarPanel.Location = new System.Drawing.Point(0, 56);
+            sidebarPanel.Name = "sidebarPanel";
+            sidebarPanel.Size = new System.Drawing.Size(232, 743);
+            sidebarPanel.TabIndex = 2;
             // 
             // navScroll
             // 
-            this.navScroll.AutoScroll = true;
-            this.navScroll.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)19))), ((int)(((byte)26))), ((int)(((byte)41))));
-            this.navScroll.Controls.Add(this.lblSecPrincipal);
-            this.navScroll.Controls.Add(this.navEchipamente);
-            this.navScroll.Controls.Add(this.navSali);
-            this.navScroll.Controls.Add(this.navMembri);
-            this.navScroll.Controls.Add(this.navSesiuni);
-            this.navScroll.Controls.Add(this.navRezervari);
-            this.navScroll.Controls.Add(this.navFavorite);
-            this.navScroll.Controls.Add(this.navCalculator);
-            this.navScroll.Controls.Add(this.lblSecAdministrare);
-            this.navScroll.Controls.Add(this.navOperatori);
-            this.navScroll.Controls.Add(this.navRapoarte);
-            this.navScroll.Controls.Add(this.navUtilizatori);
-            this.navScroll.Controls.Add(this.lblSecCont);
-            this.navScroll.Controls.Add(this.navProfil);
-            this.navScroll.Controls.Add(this.navParola);
-            this.navScroll.Controls.Add(this.navDeconectare);
-            this.navScroll.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.navScroll.Location = new System.Drawing.Point(0, 0);
-            this.navScroll.Name = "navScroll";
-            this.navScroll.Padding = new System.Windows.Forms.Padding(10, 14, 10, 14);
-            this.navScroll.Size = new System.Drawing.Size(230, 687);
-            this.navScroll.TabIndex = 0;
+            navScroll.AutoScroll = true;
+            navScroll.BackColor = AppClubCalculatoare.UI.Design.Bg;
+            navScroll.Controls.Add(lblSecPrincipal);
+            navScroll.Controls.Add(navEchipamente);
+            navScroll.Controls.Add(navSali);
+            navScroll.Controls.Add(navMembri);
+            navScroll.Controls.Add(navSesiuni);
+            navScroll.Controls.Add(navRezervari);
+            navScroll.Controls.Add(navFavorite);
+            navScroll.Controls.Add(navCalculator);
+            navScroll.Controls.Add(lblSecAdministrare);
+            navScroll.Controls.Add(navOperatori);
+            navScroll.Controls.Add(navRapoarte);
+            navScroll.Controls.Add(navUtilizatori);
+            navScroll.Controls.Add(lblSecCont);
+            navScroll.Controls.Add(navProfil);
+            navScroll.Controls.Add(navParola);
+            navScroll.Controls.Add(navDeconectare);
+            navScroll.Dock = System.Windows.Forms.DockStyle.Fill;
+            navScroll.Location = new System.Drawing.Point(0, 0);
+            navScroll.Name = "navScroll";
+            navScroll.Padding = new System.Windows.Forms.Padding(10, 14, 10, 14);
+            navScroll.Size = new System.Drawing.Size(232, 743);
+            navScroll.TabIndex = 0;
             // 
             // lblSecPrincipal
             // 
-            this.lblSecPrincipal.AutoSize = true;
-            this.lblSecPrincipal.Font = new System.Drawing.Font("Segoe UI", 8.25F);
-            this.lblSecPrincipal.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)190))), ((int)(((byte)148))), ((int)(((byte)163))), ((int)(((byte)184))));
-            this.lblSecPrincipal.Location = new System.Drawing.Point(14, 20);
-            this.lblSecPrincipal.Name = "lblSecPrincipal";
-            this.lblSecPrincipal.Size = new System.Drawing.Size(62, 13);
-            this.lblSecPrincipal.TabIndex = 0;
-            this.lblSecPrincipal.Text = "PRINCIPAL";
+            lblSecPrincipal.AutoSize = true;
+            lblSecPrincipal.Font = new System.Drawing.Font("Segoe UI", 7.5F, System.Drawing.FontStyle.Bold);
+            lblSecPrincipal.ForeColor = AppClubCalculatoare.UI.Design.TextDim;
+            lblSecPrincipal.Location = new System.Drawing.Point(14, 20);
+            lblSecPrincipal.Name = "lblSecPrincipal";
+            lblSecPrincipal.Size = new System.Drawing.Size(75, 19);
+            lblSecPrincipal.TabIndex = 0;
+            lblSecPrincipal.Text = "PRINCIPAL";
             // 
             // navEchipamente
             // 
-            this.navEchipamente.Icon = "🏠";
-            this.navEchipamente.Location = new System.Drawing.Point(0, 40);
-            this.navEchipamente.Name = "navEchipamente";
-            this.navEchipamente.Size = new System.Drawing.Size(210, 40);
-            this.navEchipamente.TabIndex = 1;
-            this.navEchipamente.Text = "Echipamente";
-            this.navEchipamente.Click += new System.EventHandler(this.NavStatic_Click);
+            navEchipamente.AccessibleDescription = "Echipamente";
+            navEchipamente.AccessibleName = "Echipamente";
+            navEchipamente.Active = false;
+            navEchipamente.BadgeText = null;
+            navEchipamente.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            navEchipamente.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            navEchipamente.Icon = "🏠";
+            navEchipamente.Location = new System.Drawing.Point(0, 40);
+            navEchipamente.Name = "navEchipamente";
+            navEchipamente.Size = new System.Drawing.Size(212, 36);
+            navEchipamente.TabIndex = 1;
+            navEchipamente.Text = "Echipamente";
+            navEchipamente.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            navEchipamente.Click += NavStatic_Click;
             // 
             // navSali
             // 
-            this.navSali.Icon = "🏢";
-            this.navSali.Location = new System.Drawing.Point(0, 84);
-            this.navSali.Name = "navSali";
-            this.navSali.Size = new System.Drawing.Size(210, 40);
-            this.navSali.TabIndex = 2;
-            this.navSali.Text = "Sali";
-            this.navSali.Click += new System.EventHandler(this.NavStatic_Click);
+            navSali.AccessibleDescription = "Sali";
+            navSali.AccessibleName = "Sali";
+            navSali.Active = false;
+            navSali.BadgeText = null;
+            navSali.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            navSali.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            navSali.Icon = "🏢";
+            navSali.Location = new System.Drawing.Point(0, 84);
+            navSali.Name = "navSali";
+            navSali.Size = new System.Drawing.Size(212, 36);
+            navSali.TabIndex = 2;
+            navSali.Text = "Sali";
+            navSali.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            navSali.Click += NavStatic_Click;
             // 
             // navMembri
             // 
-            this.navMembri.Icon = "👥";
-            this.navMembri.Location = new System.Drawing.Point(0, 128);
-            this.navMembri.Name = "navMembri";
-            this.navMembri.Size = new System.Drawing.Size(210, 40);
-            this.navMembri.TabIndex = 3;
-            this.navMembri.Text = "Membri";
-            this.navMembri.Click += new System.EventHandler(this.NavStatic_Click);
+            navMembri.AccessibleDescription = "Membri";
+            navMembri.AccessibleName = "Membri";
+            navMembri.Active = false;
+            navMembri.BadgeText = null;
+            navMembri.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            navMembri.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            navMembri.Icon = "👥";
+            navMembri.Location = new System.Drawing.Point(0, 128);
+            navMembri.Name = "navMembri";
+            navMembri.Size = new System.Drawing.Size(212, 36);
+            navMembri.TabIndex = 3;
+            navMembri.Text = "Membri";
+            navMembri.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            navMembri.Click += NavStatic_Click;
             // 
             // navSesiuni
             // 
-            this.navSesiuni.Icon = "📋";
-            this.navSesiuni.Location = new System.Drawing.Point(0, 172);
-            this.navSesiuni.Name = "navSesiuni";
-            this.navSesiuni.Size = new System.Drawing.Size(210, 40);
-            this.navSesiuni.TabIndex = 4;
-            this.navSesiuni.Text = "Sesiuni";
-            this.navSesiuni.Click += new System.EventHandler(this.NavStatic_Click);
+            navSesiuni.AccessibleDescription = "Sesiuni";
+            navSesiuni.AccessibleName = "Sesiuni";
+            navSesiuni.Active = false;
+            navSesiuni.BadgeText = null;
+            navSesiuni.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            navSesiuni.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            navSesiuni.Icon = "📋";
+            navSesiuni.Location = new System.Drawing.Point(0, 172);
+            navSesiuni.Name = "navSesiuni";
+            navSesiuni.Size = new System.Drawing.Size(212, 36);
+            navSesiuni.TabIndex = 4;
+            navSesiuni.Text = "Sesiuni";
+            navSesiuni.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            navSesiuni.Click += NavStatic_Click;
             // 
             // navRezervari
             // 
-            this.navRezervari.Icon = "📅";
-            this.navRezervari.Location = new System.Drawing.Point(0, 216);
-            this.navRezervari.Name = "navRezervari";
-            this.navRezervari.Size = new System.Drawing.Size(210, 40);
-            this.navRezervari.TabIndex = 5;
-            this.navRezervari.Text = "Rezervări";
-            this.navRezervari.Click += new System.EventHandler(this.NavStatic_Click);
+            navRezervari.AccessibleDescription = "Rezervări";
+            navRezervari.AccessibleName = "Rezervări";
+            navRezervari.Active = false;
+            navRezervari.BadgeText = null;
+            navRezervari.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            navRezervari.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            navRezervari.Icon = "📅";
+            navRezervari.Location = new System.Drawing.Point(0, 216);
+            navRezervari.Name = "navRezervari";
+            navRezervari.Size = new System.Drawing.Size(212, 36);
+            navRezervari.TabIndex = 5;
+            navRezervari.Text = "Rezervări";
+            navRezervari.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            navRezervari.Click += NavStatic_Click;
             // 
             // navFavorite
             // 
-            this.navFavorite.Icon = "⭐";
-            this.navFavorite.Location = new System.Drawing.Point(0, 260);
-            this.navFavorite.Name = "navFavorite";
-            this.navFavorite.Size = new System.Drawing.Size(210, 40);
-            this.navFavorite.TabIndex = 6;
-            this.navFavorite.Text = "Favorite";
-            this.navFavorite.Click += new System.EventHandler(this.NavStatic_Click);
+            navFavorite.AccessibleDescription = "Favorite";
+            navFavorite.AccessibleName = "Favorite";
+            navFavorite.Active = false;
+            navFavorite.BadgeText = null;
+            navFavorite.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            navFavorite.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            navFavorite.Icon = "⭐";
+            navFavorite.Location = new System.Drawing.Point(0, 260);
+            navFavorite.Name = "navFavorite";
+            navFavorite.Size = new System.Drawing.Size(212, 36);
+            navFavorite.TabIndex = 6;
+            navFavorite.Text = "Favorite";
+            navFavorite.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            navFavorite.Click += NavStatic_Click;
             // 
             // navCalculator
             // 
-            this.navCalculator.Icon = "🧮";
-            this.navCalculator.Location = new System.Drawing.Point(0, 304);
-            this.navCalculator.Name = "navCalculator";
-            this.navCalculator.Size = new System.Drawing.Size(210, 40);
-            this.navCalculator.TabIndex = 7;
-            this.navCalculator.Text = "Calculator Cost";
-            this.navCalculator.Click += new System.EventHandler(this.NavStatic_Click);
+            navCalculator.AccessibleDescription = "Calculator Cost";
+            navCalculator.AccessibleName = "Calculator Cost";
+            navCalculator.Active = false;
+            navCalculator.BadgeText = null;
+            navCalculator.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            navCalculator.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            navCalculator.Icon = "\U0001f9ee";
+            navCalculator.Location = new System.Drawing.Point(0, 304);
+            navCalculator.Name = "navCalculator";
+            navCalculator.Size = new System.Drawing.Size(212, 36);
+            navCalculator.TabIndex = 7;
+            navCalculator.Text = "Calculator Cost";
+            navCalculator.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            navCalculator.Click += NavStatic_Click;
             // 
             // lblSecAdministrare
             // 
-            this.lblSecAdministrare.AutoSize = true;
-            this.lblSecAdministrare.Font = new System.Drawing.Font("Segoe UI", 8.25F);
-            this.lblSecAdministrare.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)190))), ((int)(((byte)148))), ((int)(((byte)163))), ((int)(((byte)184))));
-            this.lblSecAdministrare.Location = new System.Drawing.Point(14, 354);
-            this.lblSecAdministrare.Name = "lblSecAdministrare";
-            this.lblSecAdministrare.Size = new System.Drawing.Size(91, 13);
-            this.lblSecAdministrare.TabIndex = 8;
-            this.lblSecAdministrare.Text = "ADMINISTRARE";
+            lblSecAdministrare.AutoSize = true;
+            lblSecAdministrare.Font = new System.Drawing.Font("Segoe UI", 7.5F, System.Drawing.FontStyle.Bold);
+            lblSecAdministrare.ForeColor = AppClubCalculatoare.UI.Design.TextDim;
+            lblSecAdministrare.Location = new System.Drawing.Point(14, 354);
+            lblSecAdministrare.Name = "lblSecAdministrare";
+            lblSecAdministrare.Size = new System.Drawing.Size(105, 19);
+            lblSecAdministrare.TabIndex = 8;
+            lblSecAdministrare.Text = "ADMINISTRARE";
             // 
             // navOperatori
             // 
-            this.navOperatori.Icon = "🧑\u200d💼";
-            this.navOperatori.Location = new System.Drawing.Point(0, 374);
-            this.navOperatori.Name = "navOperatori";
-            this.navOperatori.Size = new System.Drawing.Size(210, 40);
-            this.navOperatori.TabIndex = 9;
-            this.navOperatori.Text = "Operatori";
-            this.navOperatori.Click += new System.EventHandler(this.NavStatic_Click);
+            navOperatori.AccessibleDescription = "Operatori";
+            navOperatori.AccessibleName = "Operatori";
+            navOperatori.Active = false;
+            navOperatori.BadgeText = null;
+            navOperatori.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            navOperatori.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            navOperatori.Icon = "\U0001f9d1‍💼";
+            navOperatori.Location = new System.Drawing.Point(0, 374);
+            navOperatori.Name = "navOperatori";
+            navOperatori.Size = new System.Drawing.Size(212, 36);
+            navOperatori.TabIndex = 9;
+            navOperatori.Text = "Operatori";
+            navOperatori.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            navOperatori.Click += NavStatic_Click;
             // 
             // navRapoarte
             // 
-            this.navRapoarte.Icon = "📊";
-            this.navRapoarte.Location = new System.Drawing.Point(0, 418);
-            this.navRapoarte.Name = "navRapoarte";
-            this.navRapoarte.Size = new System.Drawing.Size(210, 40);
-            this.navRapoarte.TabIndex = 10;
-            this.navRapoarte.Text = "Rapoarte";
-            this.navRapoarte.Click += new System.EventHandler(this.NavStatic_Click);
+            navRapoarte.AccessibleDescription = "Rapoarte";
+            navRapoarte.AccessibleName = "Rapoarte";
+            navRapoarte.Active = false;
+            navRapoarte.BadgeText = null;
+            navRapoarte.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            navRapoarte.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            navRapoarte.Icon = "📊";
+            navRapoarte.Location = new System.Drawing.Point(0, 418);
+            navRapoarte.Name = "navRapoarte";
+            navRapoarte.Size = new System.Drawing.Size(212, 36);
+            navRapoarte.TabIndex = 10;
+            navRapoarte.Text = "Rapoarte";
+            navRapoarte.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            navRapoarte.Click += NavStatic_Click;
             // 
             // navUtilizatori
             // 
-            this.navUtilizatori.Icon = "🛡️";
-            this.navUtilizatori.Location = new System.Drawing.Point(0, 462);
-            this.navUtilizatori.Name = "navUtilizatori";
-            this.navUtilizatori.Size = new System.Drawing.Size(210, 40);
-            this.navUtilizatori.TabIndex = 11;
-            this.navUtilizatori.Text = "Utilizatori";
-            this.navUtilizatori.Click += new System.EventHandler(this.NavStatic_Click);
+            navUtilizatori.AccessibleDescription = "Utilizatori";
+            navUtilizatori.AccessibleName = "Utilizatori";
+            navUtilizatori.Active = false;
+            navUtilizatori.BadgeText = null;
+            navUtilizatori.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            navUtilizatori.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            navUtilizatori.Icon = "🛡️";
+            navUtilizatori.Location = new System.Drawing.Point(0, 462);
+            navUtilizatori.Name = "navUtilizatori";
+            navUtilizatori.Size = new System.Drawing.Size(212, 36);
+            navUtilizatori.TabIndex = 11;
+            navUtilizatori.Text = "Utilizatori";
+            navUtilizatori.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            navUtilizatori.Click += NavStatic_Click;
             // 
             // lblSecCont
             // 
-            this.lblSecCont.AutoSize = true;
-            this.lblSecCont.Font = new System.Drawing.Font("Segoe UI", 8.25F);
-            this.lblSecCont.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)190))), ((int)(((byte)148))), ((int)(((byte)163))), ((int)(((byte)184))));
-            this.lblSecCont.Location = new System.Drawing.Point(14, 512);
-            this.lblSecCont.Name = "lblSecCont";
-            this.lblSecCont.Size = new System.Drawing.Size(41, 13);
-            this.lblSecCont.TabIndex = 12;
-            this.lblSecCont.Text = "CONT";
+            lblSecCont.AutoSize = true;
+            lblSecCont.Font = new System.Drawing.Font("Segoe UI", 7.5F, System.Drawing.FontStyle.Bold);
+            lblSecCont.ForeColor = AppClubCalculatoare.UI.Design.TextDim;
+            lblSecCont.Location = new System.Drawing.Point(14, 512);
+            lblSecCont.Name = "lblSecCont";
+            lblSecCont.Size = new System.Drawing.Size(46, 19);
+            lblSecCont.TabIndex = 12;
+            lblSecCont.Text = "CONT";
             // 
             // navProfil
             // 
-            this.navProfil.Icon = "👤";
-            this.navProfil.Location = new System.Drawing.Point(0, 532);
-            this.navProfil.Name = "navProfil";
-            this.navProfil.Size = new System.Drawing.Size(210, 40);
-            this.navProfil.TabIndex = 13;
-            this.navProfil.Text = "Profilul meu";
-            this.navProfil.Click += new System.EventHandler(this.NavStatic_Click);
+            navProfil.AccessibleDescription = "Profilul meu";
+            navProfil.AccessibleName = "Profilul meu";
+            navProfil.Active = false;
+            navProfil.BadgeText = null;
+            navProfil.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            navProfil.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            navProfil.Icon = "👤";
+            navProfil.Location = new System.Drawing.Point(0, 532);
+            navProfil.Name = "navProfil";
+            navProfil.Size = new System.Drawing.Size(212, 36);
+            navProfil.TabIndex = 13;
+            navProfil.Text = "Profilul meu";
+            navProfil.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            navProfil.Click += NavStatic_Click;
             // 
             // navParola
             // 
-            this.navParola.Icon = "🔑";
-            this.navParola.Location = new System.Drawing.Point(0, 576);
-            this.navParola.Name = "navParola";
-            this.navParola.Size = new System.Drawing.Size(210, 40);
-            this.navParola.TabIndex = 14;
-            this.navParola.Text = "Schimbă parola";
-            this.navParola.Click += new System.EventHandler(this.NavStatic_Click);
+            navParola.AccessibleDescription = "Schimbă parola";
+            navParola.AccessibleName = "Schimbă parola";
+            navParola.Active = false;
+            navParola.BadgeText = null;
+            navParola.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            navParola.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            navParola.Icon = "🔑";
+            navParola.Location = new System.Drawing.Point(0, 576);
+            navParola.Name = "navParola";
+            navParola.Size = new System.Drawing.Size(212, 36);
+            navParola.TabIndex = 14;
+            navParola.Text = "Schimbă parola";
+            navParola.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            navParola.Click += NavStatic_Click;
             // 
             // navDeconectare
             // 
-            this.navDeconectare.Icon = "🚪";
-            this.navDeconectare.Location = new System.Drawing.Point(0, 620);
-            this.navDeconectare.Name = "navDeconectare";
-            this.navDeconectare.Size = new System.Drawing.Size(210, 40);
-            this.navDeconectare.TabIndex = 15;
-            this.navDeconectare.Text = "Deconectare";
-            this.navDeconectare.Click += new System.EventHandler(this.BtnDeconBottom_Click);
+            navDeconectare.AccessibleDescription = "Deconectare";
+            navDeconectare.AccessibleName = "Deconectare";
+            navDeconectare.Active = false;
+            navDeconectare.BadgeText = null;
+            navDeconectare.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            navDeconectare.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+            navDeconectare.Icon = "🚪";
+            navDeconectare.Location = new System.Drawing.Point(0, 620);
+            navDeconectare.Name = "navDeconectare";
+            navDeconectare.Size = new System.Drawing.Size(212, 36);
+            navDeconectare.TabIndex = 15;
+            navDeconectare.Text = "Deconectare";
+            navDeconectare.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            navDeconectare.Click += BtnDeconBottom_Click;
             // 
             // contentPanel
             // 
-            this.contentPanel.AutoScroll = true;
-            this.contentPanel.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)15))),  ((int)(((byte)20))),  ((int)(((byte)32))));
-            this.contentPanel.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.contentPanel.Location = new System.Drawing.Point(230, 60);
-            this.contentPanel.Name = "contentPanel";
-            this.contentPanel.Padding = new System.Windows.Forms.Padding(20);
-            this.contentPanel.Size = new System.Drawing.Size(1034, 687);
-            this.contentPanel.TabIndex = 0;
+            contentPanel.AutoScroll = true;
+            contentPanel.BackColor = AppClubCalculatoare.UI.Design.Bg;
+            contentPanel.Dock = System.Windows.Forms.DockStyle.Fill;
+            contentPanel.Location = new System.Drawing.Point(232, 56);
+            contentPanel.Name = "contentPanel";
+            contentPanel.Padding = new System.Windows.Forms.Padding(20);
+            contentPanel.Size = new System.Drawing.Size(1032, 695);
+            contentPanel.TabIndex = 0;
             // 
             // bottomBar
             // 
-            this.bottomBar.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)11))),  ((int)(((byte)16))),  ((int)(((byte)26))));
-            this.bottomBar.Controls.Add(this.bottomLayout);
-            this.bottomBar.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.bottomBar.Location = new System.Drawing.Point(230, 747);
-            this.bottomBar.Name = "bottomBar";
-            this.bottomBar.Padding = new System.Windows.Forms.Padding(12, 10, 16, 10);
-            this.bottomBar.Size = new System.Drawing.Size(1034, 52);
-            this.bottomBar.TabIndex = 1;
-            this.bottomBar.Paint += new System.Windows.Forms.PaintEventHandler(this.BottomBar_Paint);
+            bottomBar.BackColor = AppClubCalculatoare.UI.Design.Surface;
+            bottomBar.Controls.Add(bottomLayout);
+            bottomBar.Dock = System.Windows.Forms.DockStyle.Bottom;
+            bottomBar.Location = new System.Drawing.Point(232, 751);
+            bottomBar.Name = "bottomBar";
+            bottomBar.Padding = new System.Windows.Forms.Padding(12, 8, 16, 8);
+            bottomBar.Size = new System.Drawing.Size(1032, 48);
+            bottomBar.TabIndex = 1;
+            bottomBar.Paint += BottomBar_Paint;
             // 
             // bottomLayout
             // 
-            this.bottomLayout.BackColor = System.Drawing.Color.Transparent;
-            this.bottomLayout.ColumnCount = 2;
-            this.bottomLayout.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.bottomLayout.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
-            this.bottomLayout.Controls.Add(this.lblStatusUser, 0, 0);
-            this.bottomLayout.Controls.Add(this.bottomRight, 1, 0);
-            this.bottomLayout.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.bottomLayout.Location = new System.Drawing.Point(12, 10);
-            this.bottomLayout.Name = "bottomLayout";
-            this.bottomLayout.RowCount = 1;
-            this.bottomLayout.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-            this.bottomLayout.Size = new System.Drawing.Size(996, 32);
-            this.bottomLayout.TabIndex = 0;
+            bottomLayout.BackColor = System.Drawing.Color.Transparent;
+            bottomLayout.ColumnCount = 2;
+            bottomLayout.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            bottomLayout.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
+            bottomLayout.Controls.Add(lblStatusUser, 0, 0);
+            bottomLayout.Controls.Add(bottomRight, 1, 0);
+            bottomLayout.Dock = System.Windows.Forms.DockStyle.Fill;
+            bottomLayout.Location = new System.Drawing.Point(12, 8);
+            bottomLayout.Name = "bottomLayout";
+            bottomLayout.RowCount = 1;
+            bottomLayout.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
+            bottomLayout.Size = new System.Drawing.Size(1004, 32);
+            bottomLayout.TabIndex = 0;
             // 
             // lblStatusUser
             // 
-            this.lblStatusUser.AutoEllipsis = true;
-            this.lblStatusUser.BackColor = System.Drawing.Color.Transparent;
-            this.lblStatusUser.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.lblStatusUser.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-            this.lblStatusUser.ForeColor = System.Drawing.Color.FromArgb(((int)(((byte)148))), ((int)(((byte)163))), ((int)(((byte)184))));
-            this.lblStatusUser.Location = new System.Drawing.Point(0, 0);
-            this.lblStatusUser.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
-            this.lblStatusUser.Name = "lblStatusUser";
-            this.lblStatusUser.Size = new System.Drawing.Size(858, 32);
-            this.lblStatusUser.TabIndex = 0;
-            this.lblStatusUser.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            lblStatusUser.AutoEllipsis = true;
+            lblStatusUser.BackColor = System.Drawing.Color.Transparent;
+            lblStatusUser.Dock = System.Windows.Forms.DockStyle.Fill;
+            lblStatusUser.Font = new System.Drawing.Font("Segoe UI", 9F);
+            lblStatusUser.ForeColor = AppClubCalculatoare.UI.Design.TextMuted;
+            lblStatusUser.Location = new System.Drawing.Point(0, 0);
+            lblStatusUser.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
+            lblStatusUser.Name = "lblStatusUser";
+            lblStatusUser.Size = new System.Drawing.Size(806, 32);
+            lblStatusUser.TabIndex = 0;
+            lblStatusUser.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // bottomRight
             // 
-            this.bottomRight.AutoSize = true;
-            this.bottomRight.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.bottomRight.BackColor = System.Drawing.Color.Transparent;
-            this.bottomRight.Controls.Add(this.btnParolaBottom);
-            this.bottomRight.Controls.Add(this.btnDeconBottom);
-            this.bottomRight.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.bottomRight.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight;
-            this.bottomRight.Location = new System.Drawing.Point(866, 0);
-            this.bottomRight.Name = "bottomRight";
-            this.bottomRight.Padding = new System.Windows.Forms.Padding(0);
-            this.bottomRight.Size = new System.Drawing.Size(130, 32);
-            this.bottomRight.TabIndex = 1;
-            this.bottomRight.WrapContents = false;
+            bottomRight.AutoSize = true;
+            bottomRight.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            bottomRight.BackColor = System.Drawing.Color.Transparent;
+            bottomRight.Controls.Add(btnParolaBottom);
+            bottomRight.Controls.Add(btnDeconBottom);
+            bottomRight.Dock = System.Windows.Forms.DockStyle.Fill;
+            bottomRight.Location = new System.Drawing.Point(817, 0);
+            bottomRight.Margin = new System.Windows.Forms.Padding(0);
+            bottomRight.Name = "bottomRight";
+            bottomRight.Size = new System.Drawing.Size(184, 32);
+            bottomRight.TabIndex = 1;
+            bottomRight.WrapContents = false;
             // 
             // btnParolaBottom
             // 
-            this.btnParolaBottom.ButtonStyle = AppClubCalculatoare.UI.MaterialButtonStyle.Secondary;
-            this.btnParolaBottom.Location = new System.Drawing.Point(0, 0);
-            this.btnParolaBottom.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
-            this.btnParolaBottom.Name = "btnParolaBottom";
-            this.btnParolaBottom.Size = new System.Drawing.Size(160, 32);
-            this.btnParolaBottom.TabIndex = 0;
-            this.btnParolaBottom.Text = "🔑  Schimbă parola";
-            this.btnParolaBottom.UseVisualStyleBackColor = false;
-            this.btnParolaBottom.Click += new System.EventHandler(this.BtnParolaBottom_Click);
+            btnParolaBottom.ButtonStyle = AppClubCalculatoare.UI.MaterialButtonStyle.Secondary;
+            btnParolaBottom.Location = new System.Drawing.Point(0, 0);
+            btnParolaBottom.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
+            btnParolaBottom.Name = "btnParolaBottom";
+            btnParolaBottom.Size = new System.Drawing.Size(150, 32);
+            btnParolaBottom.TabIndex = 0;
+            btnParolaBottom.Text = "Schimbă parola";
+            btnParolaBottom.UseVisualStyleBackColor = false;
+            btnParolaBottom.Click += BtnParolaBottom_Click;
             // 
             // btnDeconBottom
             // 
-            this.btnDeconBottom.ButtonStyle = AppClubCalculatoare.UI.MaterialButtonStyle.Outline;
-            this.btnDeconBottom.Location = new System.Drawing.Point(168, 0);
-            this.btnDeconBottom.Name = "btnDeconBottom";
-            this.btnDeconBottom.Size = new System.Drawing.Size(150, 32);
-            this.btnDeconBottom.TabIndex = 1;
-            this.btnDeconBottom.Text = "🚪  Deconectare";
-            this.btnDeconBottom.UseVisualStyleBackColor = false;
-            this.btnDeconBottom.Click += new System.EventHandler(this.BtnDeconBottom_Click);
+            btnDeconBottom.ButtonStyle = AppClubCalculatoare.UI.MaterialButtonStyle.Outline;
+            btnDeconBottom.Location = new System.Drawing.Point(158, 0);
+            btnDeconBottom.Margin = new System.Windows.Forms.Padding(0);
+            btnDeconBottom.Name = "btnDeconBottom";
+            btnDeconBottom.Size = new System.Drawing.Size(120, 32);
+            btnDeconBottom.TabIndex = 1;
+            btnDeconBottom.Text = "Deconectare";
+            btnDeconBottom.UseVisualStyleBackColor = false;
+            btnDeconBottom.Click += BtnDeconBottom_Click;
             // 
             // FormMainCuLogin
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)15))),  ((int)(((byte)20))),  ((int)(((byte)32))));
-            this.ClientSize = new System.Drawing.Size(1264, 799);
-            this.Controls.Add(this.contentPanel);
-            this.Controls.Add(this.bottomBar);
-            this.Controls.Add(this.sidebarPanel);
-            this.Controls.Add(this.topBar);
-            this.Font = new System.Drawing.Font("Segoe UI", 10F);
-            this.MinimumSize = new System.Drawing.Size(1080, 700);
-            this.Name = "FormMainCuLogin";
-            this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
-            this.Text = "Club de Calculatoare";
-            this.Shown += new System.EventHandler(this.FormMainCuLogin_Shown);
-            this.topBar.ResumeLayout(false);
-            this.topBar.PerformLayout();
-            this.searchBox.ResumeLayout(false);
-            this.searchBox.PerformLayout();
-            this.userPanel.ResumeLayout(false);
-            this.userPanel.PerformLayout();
-            this.avatar.ResumeLayout(false);
-            this.bottomBar.ResumeLayout(false);
-            this.bottomLayout.ResumeLayout(false);
-            this.bottomRight.ResumeLayout(false);
-            this.bottomRight.PerformLayout();
-            this.ResumeLayout(false);
-            this.PerformLayout();
+            // Fereastra este DPI-aware (app.manifest): scalare uniformă o singură
+            // dată la afișare (ex. 125%), fără „stretch" bitmap al Windows.
+            AutoScaleDimensions = new System.Drawing.SizeF(96F, 96F);
+            AutoScaleMode = System.Windows.Forms.AutoScaleMode.Dpi;
+            BackColor = AppClubCalculatoare.UI.Design.Bg;
+            ClientSize = new System.Drawing.Size(1264, 799);
+            Controls.Add(contentPanel);
+            Controls.Add(bottomBar);
+            Controls.Add(sidebarPanel);
+            Controls.Add(topBar);
+            Font = new System.Drawing.Font("Segoe UI", 10F);
+            MinimumSize = new System.Drawing.Size(1080, 700);
+            Name = "FormMainCuLogin";
+            StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
+            Text = "Club de Calculatoare";
+            Shown += FormMainCuLogin_Shown;
+            topBar.ResumeLayout(false);
+            topBar.PerformLayout();
+            searchBox.ResumeLayout(false);
+            searchBox.PerformLayout();
+            userPanel.ResumeLayout(false);
+            userPanel.PerformLayout();
+            avatar.ResumeLayout(false);
+            sidebarPanel.ResumeLayout(false);
+            navScroll.ResumeLayout(false);
+            navScroll.PerformLayout();
+            bottomBar.ResumeLayout(false);
+            bottomLayout.ResumeLayout(false);
+            bottomLayout.PerformLayout();
+            bottomRight.ResumeLayout(false);
+            ResumeLayout(false);
         }
 
         #endregion

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Drawing;
 using System.Windows.Forms;
 using AppClubCalculatoare.UI;
@@ -32,6 +32,12 @@ namespace AppClubCalculatoare
             this.MaximizeBox     = true;
             this.BackColor       = MaterialTheme.Background;
             this.Font            = MaterialTheme.FontBody;
+
+            // DPI: scalare uniformă (fereastra este DPI-aware) + titlu închis.
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode       = AutoScaleMode.Dpi;
+            WindowChrome.EnableDarkTitleBar(this);
+
             BuildUI();
             IncarcaDate();
         }
@@ -125,7 +131,11 @@ namespace AppClubCalculatoare
                 Size       = new Size(520, 170),
                 Anchor     = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 BorderStyle = BorderStyle.FixedSingle,
-                Font       = MaterialTheme.FontSmall
+                Font       = MaterialTheme.FontSmall,
+                // Fara aceste culori, ListBox ramane la fundalul alb de
+                // sistem in interiorul cardului inchis (petec alba evidenta).
+                BackColor  = MaterialTheme.SurfaceAlt,
+                ForeColor  = MaterialTheme.TextPrimary
             };
             cardPerm.Controls.Add(lstPermisiuni);
 
@@ -166,7 +176,7 @@ namespace AppClubCalculatoare
                            CONVERT(VARCHAR, ultima_autentificare, 108)
                     FROM   Utilizatori
                     WHERE  username = @user";
-                using (var conn = new SqlConnection(_connStr))
+                using (var conn = SqlDb.CreateConnection())
                 using (var cmd = new SqlCommand(sql, conn))
                 {
                     cmd.Parameters.Add("@user", System.Data.SqlDbType.NVarChar, 50)

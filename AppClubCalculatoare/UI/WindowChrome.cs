@@ -104,6 +104,40 @@ namespace AppClubCalculatoare.UI
             }
         }
 
+        // ── DWM: bară de titlu întunecată (Win10 2004+ / Win11) ─────
+        private const int DWMWA_USE_IMMERSIVE_DARK_MODE     = 20;
+        private const int DWMWA_USE_IMMERSIVE_DARK_MODE_OLD = 19;
+
+        /// <summary>
+        /// Bară de titlu închisă pentru ferestrele cu ramă standard
+        /// (dialogurile), ca să se potrivească cu tema întunecată a
+        /// aplicației. Se aplică la crearea handle-ului; ignorat pe
+        /// versiunile fără suport DWM.
+        /// </summary>
+        public static void EnableDarkTitleBar(Form form)
+        {
+            if (form == null) return;
+            if (form.IsHandleCreated) ApplyDarkTitleBar(form);
+            else form.HandleCreated += (s, e) => ApplyDarkTitleBar(form);
+        }
+
+        private static void ApplyDarkTitleBar(Form form)
+        {
+            try
+            {
+                int on = 1;
+                int hr = DwmSetWindowAttribute(form.Handle, DWMWA_USE_IMMERSIVE_DARK_MODE,
+                    ref on, sizeof(int));
+                if (hr != 0)
+                    DwmSetWindowAttribute(form.Handle, DWMWA_USE_IMMERSIVE_DARK_MODE_OLD,
+                        ref on, sizeof(int));
+            }
+            catch
+            {
+                // Fără suport DWM — rămâne bara de titlu implicită.
+            }
+        }
+
         /// <summary>
         /// Procesează mesajele esențiale pentru chrome-ul borderless.
         /// Întoarce true dacă mesajul a fost complet gestionat (apelantul NU mai

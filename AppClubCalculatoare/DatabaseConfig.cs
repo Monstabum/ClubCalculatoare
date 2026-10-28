@@ -1,5 +1,7 @@
 using System;
 using System.Configuration;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace AppClubCalculatoare
 {
@@ -34,7 +36,7 @@ namespace AppClubCalculatoare
                         $"Connection string-ul '{ConnectionName}' lipseste din App.config.\n" +
                         "Verifica sectiunea <connectionStrings>.");
 
-                _connectionString = entry.ConnectionString;
+                _connectionString = DbSettings.Build(entry.ConnectionString);
                 return _connectionString;
             }
         }
@@ -61,13 +63,17 @@ namespace AppClubCalculatoare
             }
         }
 
-        /// <summary>Expirarea sesiunii la inactivitate (minute; 0 = dezactivat).</summary>
+        /// <summary>
+        /// Expirarea sesiunii la inactivitate (minute; 0 = dezactivat).
+        /// Valorile negative sunt tratate tot ca dezactivat (vezi CreeazaTimerInactivitate).
+        /// </summary>
         public static int SessionTimeoutMinutes
         {
             get
             {
                 string val = ConfigurationManager.AppSettings["SessionTimeoutMinutes"];
-                return int.TryParse(val, out int n) && n > 0 ? n : 15;
+                // FIX B3: 0 (sau negativ) = dezactivat, nu se mai inlocuieste cu 15.
+                return int.TryParse(val, out int n) ? n : 15;
             }
         }
 
@@ -139,7 +145,7 @@ namespace AppClubCalculatoare
             errorMessage = null;
             try
             {
-                using (var conn = new System.Data.SqlClient.SqlConnection(ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     conn.Open();
                     return true;
@@ -149,6 +155,25 @@ namespace AppClubCalculatoare
             {
                 errorMessage = ex.Message;
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Varianta async a testului de conexiune, folosită de ecranele care
+        /// nu trebuie să blocheze UI-thread-ul.
+        /// </summary>
+        public static async Task<(bool Ok, string Error)> TestConnectionAsync(
+            CancellationToken ct = default)
+        {
+            try
+            {
+                await using (var conn = SqlDb.CreateConnection())
+                    await conn.OpenAsync(ct).ConfigureAwait(false);
+                return (true, null);
+            }
+            catch (Exception ex)
+            {
+                return (false, ex.Message);
             }
         }
     }

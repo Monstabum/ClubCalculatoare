@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Data.SqlClient;
 
 namespace AppClubCalculatoare
 {
@@ -17,7 +19,7 @@ namespace AppClubCalculatoare
         private static int IdUtilizatorCurent()
         {
             const string sql = "SELECT id_utilizator FROM Utilizatori WHERE username = @user";
-            using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+            using (var conn = SqlDb.CreateConnection())
             using (var cmd = new SqlCommand(sql, conn))
             {
                 cmd.Parameters.Add("@user", System.Data.SqlDbType.NVarChar, 50)
@@ -39,7 +41,7 @@ namespace AppClubCalculatoare
                 SELECT id_echipament
                 FROM   Favorite
                 WHERE  id_utilizator = @id";
-            using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+            using (var conn = SqlDb.CreateConnection())
             using (var cmd = new SqlCommand(sql, conn))
             {
                 cmd.Parameters.Add("@id", System.Data.SqlDbType.Int).Value = IdUtilizatorCurent();
@@ -57,7 +59,7 @@ namespace AppClubCalculatoare
                 SELECT COUNT(*)
                 FROM   Favorite
                 WHERE  id_utilizator = @idu AND id_echipament = @idp";
-            using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+            using (var conn = SqlDb.CreateConnection())
             using (var cmd = new SqlCommand(sql, conn))
             {
                 cmd.Parameters.Add("@idu", System.Data.SqlDbType.Int).Value = IdUtilizatorCurent();
@@ -75,7 +77,7 @@ namespace AppClubCalculatoare
                                WHERE id_utilizator = @idu AND id_echipament = @idp)
                     INSERT INTO Favorite (id_utilizator, id_echipament)
                     VALUES (@idu, @idp)";
-            using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+            using (var conn = SqlDb.CreateConnection())
             using (var cmd = new SqlCommand(sql, conn))
             {
                 cmd.Parameters.Add("@idu", System.Data.SqlDbType.Int).Value = IdUtilizatorCurent();
@@ -91,7 +93,7 @@ namespace AppClubCalculatoare
             const string sql = @"
                 DELETE FROM Favorite
                 WHERE  id_utilizator = @idu AND id_echipament = @idp";
-            using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+            using (var conn = SqlDb.CreateConnection())
             using (var cmd = new SqlCommand(sql, conn))
             {
                 cmd.Parameters.Add("@idu", System.Data.SqlDbType.Int).Value = IdUtilizatorCurent();
@@ -125,7 +127,7 @@ namespace AppClubCalculatoare
                 END";
             try
             {
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 using (var cmd = new SqlCommand(sql, conn))
                 {
                     cmd.Parameters.Add("@idu", System.Data.SqlDbType.Int).Value = IdUtilizatorCurent();
@@ -146,6 +148,45 @@ namespace AppClubCalculatoare
         }
 
         /// <summary>
+        /// Varianta async a comutării favorite (un singur round trip):
+        /// rezolvă id-ul utilizatorului și comută atomic într-o singură comandă.
+        /// </summary>
+        public static async Task<bool> ComuteazaAsync(
+            int idEchipament, CancellationToken ct = default)
+        {
+            const string sql = @"
+                DECLARE @idu INT =
+                    (SELECT id_utilizator FROM Utilizatori WHERE username = @user);
+
+                IF @idu IS NULL
+                BEGIN
+                    ;THROW 51000, 'Utilizator inexistent in baza de date.', 1;
+                END
+
+                IF EXISTS (SELECT 1 FROM Favorite
+                            WHERE id_utilizator = @idu AND id_echipament = @idp)
+                BEGIN
+                    DELETE FROM Favorite
+                    WHERE id_utilizator = @idu AND id_echipament = @idp;
+                    SELECT 0;
+                END
+                ELSE
+                BEGIN
+                    INSERT INTO Favorite (id_utilizator, id_echipament)
+                    VALUES (@idu, @idp);
+                    SELECT 1;
+                END";
+
+            int rezultat = await SqlDb.ScalarAsync<int>(sql, p =>
+            {
+                p.Add("@user", System.Data.SqlDbType.NVarChar, 50).Value = SessionInfo.Username;
+                p.Add("@idp", System.Data.SqlDbType.Int).Value = idEchipament;
+            }, ct, SqlDb.DefaultTimeoutSeconds, retryTransient: false).ConfigureAwait(false);
+
+            return rezultat == 1;
+        }
+
+        /// <summary>
         /// Tabela Favorite exista in baza? (scriptul BD/Favorite.sql rulat?)
         /// Folosit pentru mesaje clare in loc de SqlException.
         /// </summary>
@@ -154,7 +195,7 @@ namespace AppClubCalculatoare
             try
             {
                 const string sql = "SELECT COUNT(*) FROM Favorite";
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
+                using (var conn = SqlDb.CreateConnection())
                 using (var cmd = new SqlCommand(sql, conn))
                 {
                     conn.Open();

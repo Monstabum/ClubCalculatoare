@@ -75,8 +75,8 @@ GO
    nu pentru NVARCHAR. Folosim VARCHAR(64) + VARBINARY(50) explicit.
 
    Conturi implicite:
-     Constantin / 121212  → Admin (Administrator)
-     Maxim      / 575757  → User  (Utilizator)
+     Alexandru / 121212  → Admin (Administrator)
+     Mihail     / 575757  → User  (Utilizator)
    ---------------------------------------------------------------- */
 
 DECLARE @hash_admin  NVARCHAR(256);
@@ -93,24 +93,25 @@ SELECT @hash_user = LOWER(CONVERT(VARCHAR(64),
 PRINT 'Hash admin (parola 121212): ' + @hash_admin;
 PRINT 'Hash user  (parola 575757): ' + @hash_user;
 
--- Șterge conturile dacă există deja (pentru re-rularea scriptului)
-DELETE FROM Utilizatori WHERE username IN ('Constantin', 'Maxim');
-
--- ── Cont 1: ADMINISTRATOR ────────────────────────────────────────
-INSERT INTO Utilizatori (username, parola_hash, rol, nume_complet, email, activ)
-VALUES ('Constantin', @hash_admin, 'Admin', 'Constantin (Administrator)',
-        'admin@clubcalculatoare.ro', 1);
-
--- ── Cont 2: UTILIZATOR ──────────────────────────────────────────
-INSERT INTO Utilizatori (username, parola_hash, rol, nume_complet, email, activ)
-VALUES ('Maxim', @hash_user, 'User', 'Maxim (Utilizator)',
-        'user@clubcalculatoare.ro', 1);
-
-PRINT '';
-PRINT '================================================================';
-PRINT 'Conturi create cu succes:';
-PRINT '  Username: Constantin | Parola: 121212 | Rol: Admin (Administrator)';
-PRINT '  Username: Maxim      | Parola: 575757 | Rol: User (Utilizator)';
+-- Șterge conturile dacă există deja (pentru re-rularea scriptului).
+-- Se șterg atât numele noi, cât și cele vechi, pentru migrare sigură.
+DELETE FROM Utilizatori WHERE username IN ('Alexandru', 'Mihail', 'Constantin', 'Maxim');
+
+-- ── Cont 1: ADMINISTRATOR ────────────────────────────────────────
+INSERT INTO Utilizatori (username, parola_hash, rol, nume_complet, email, activ)
+VALUES ('Alexandru', @hash_admin, 'Admin', 'Alexandru (Administrator)',
+        'admin@clubcalculatoare.ro', 1);
+
+-- ── Cont 2: UTILIZATOR ──────────────────────────────────────────
+INSERT INTO Utilizatori (username, parola_hash, rol, nume_complet, email, activ)
+VALUES ('Mihail', @hash_user, 'User', 'Mihail (Utilizator)',
+        'user@clubcalculatoare.ro', 1);
+
+PRINT '';
+PRINT '================================================================';
+PRINT 'Conturi create cu succes:';
+PRINT '  Username: Alexandru | Parola: 121212 | Rol: Admin (Administrator)';
+PRINT '  Username: Mihail    | Parola: 575757 | Rol: User (Utilizator)';
 PRINT '================================================================';
 GO
 

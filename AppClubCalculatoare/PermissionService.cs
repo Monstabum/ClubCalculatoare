@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
-using System.Data.SqlClient;
+using System.Data;
+using System.Threading;
+using System.Threading.Tasks;
+using Microsoft.Data.SqlClient;
 
 namespace AppClubCalculatoare
 {
@@ -165,32 +168,25 @@ namespace AppClubCalculatoare
     ///             reverifica permisiunea (inclusiv direct in BD), deci un
     ///             acces ocolind meniul este tot blocat si logat.
     ///
-    /// Performanta: permisiunile se incarca la autentificare in SessionInfo;
-    /// VerificaAre adauga a doua verificare direct in BD, cu cache scurt.
+    /// Performanta: permisiunile se incarca o singura data la autentificare
+    /// in SessionInfo; VerificaAre lucreaza pe acel set (fara query la fiecare
+    /// actiune). Setul se reincarca dupa modificarea drepturilor proprii.
     /// </summary>
     internal static class PermissionService
     {
-        private static readonly object _lock = new object();
-        private static Dictionary<string, bool> _cache;
-        private static DateTime _cacheTimp = DateTime.MinValue;
-        private const int CacheSecunde = 15;
-
         // ── Incarcare permisiuni la autentificare ───────────────────
 
         /// <summary>
-        /// Incarca permisiunile utilizatorului in SessionInfo.
+        /// Incarca permisiunile utilizatorului in SessionInfo (async).
         /// Se apeleaza in FormLogin dupa autentificare si dupa orice
         /// modificare de drepturi asupra utilizatorului curent.
         /// Adminul primeste setul complet. Fail-safe: la eroare, un
         /// non-admin nu primeste nicio permisiune suplimentara.
         /// </summary>
-        public static void IncarcaPermisiuni(string username, bool esteAdmin)
+        public static async Task IncarcaPermisiuniAsync(
+            string username, bool esteAdmin, CancellationToken ct = default)
         {
             SessionInfo.Permisiuni.Clear();
-            // FIX: cache-ul backend (VerificaAre, 15s) apartinea sesiunii
-            // anterioare — la switch de user fara restart, noul utilizator
-            // mostenea pana la 15s permisiunile celui vechi.
-            InvalideazaCache();
 
             if (esteAdmin)
             {
@@ -207,46 +203,34 @@ namespace AppClubCalculatoare
                     JOIN   Utilizatori u ON u.id_utilizator = up.id_utilizator
                     WHERE  u.username = @username";
 
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
-                using (var cmd = new SqlCommand(sql, conn))
-                {
-                    cmd.Parameters.Add("@username", System.Data.SqlDbType.NVarChar, 50)
-                                  .Value = username;
-                    conn.Open();
-                    using (var reader = cmd.ExecuteReader())
-                        while (reader.Read())
-                            SessionInfo.Permisiuni.Add(reader.GetString(0));
-                }
+                var permisiuni = await SqlDb.QueryAsync(
+                    sql,
+                    reader => reader.GetString(0),
+                    p => p.Add("@username", SqlDbType.NVarChar, 50).Value = username,
+                    ct).ConfigureAwait(false);
+
+                foreach (string cod in permisiuni)
+                    SessionInfo.Permisiuni.Add(cod);
             }
             catch (Exception ex)
             {
-                AppLogger.Error(ex, "PermissionService.IncarcaPermisiuni");
+                AppLogger.Error(ex, "PermissionService.IncarcaPermisiuniAsync");
             }
         }
 
-        // ── Verificare backend (cu cache scurt) ─────────────────────
+        // ── Verificare pe setul din sesiune ─────────────────────────
 
         /// <summary>
-        /// Verificare "de server": reciteste din BD permisiunea ceruta.
-        /// Blocanta pentru orice actiune la care utilizatorul nu are drept,
-        /// inclusiv daca fereastra a fost construita programatic.
+        /// Verificare pentru actiunile protejate. Setul este incarcat la login
+        /// (si reincarcat dupa modificarea drepturilor), deci nu se mai face
+        /// un query la fiecare apasare de buton.
+        /// Fail-closed: cod null/necunoscut => false.
         /// </summary>
         public static bool VerificaAre(string cod, bool esteAdmin)
         {
             if (esteAdmin) return true;
-            // FIX_06: fail-closed — cod null/necunoscut NU deschide accesul.
             if (cod == null) return false;
-
-            lock (_lock)
-            {
-                if (_cache == null ||
-                    (DateTime.Now - _cacheTimp).TotalSeconds > CacheSecunde)
-                {
-                    _cache = CitesteToateDinBd();
-                    _cacheTimp = DateTime.Now;
-                }
-                return _cache.TryGetValue(cod, out bool ok) && ok;
-            }
+            return SessionInfo.ArePermisiune(cod);
         }
 
         /// <summary>
@@ -256,45 +240,6 @@ namespace AppClubCalculatoare
         /// </summary>
         public static bool AreUI(string cod)
             => cod != null && SessionInfo.ArePermisiune(cod);
-
-        private static Dictionary<string, bool> CitesteToateDinBd()
-        {
-            var rezultat = new Dictionary<string, bool>();
-            try
-            {
-                const string sql = @"
-                    SELECT p.cod, CASE WHEN up.id_utilizator IS NOT NULL
-                                       THEN 1 ELSE 0 END AS acordata
-                    FROM   Permisiuni p
-                    JOIN   Utilizatori u ON u.username = @username
-                    LEFT   JOIN UtilizatoriPermisiuni up
-                           ON up.cod_permisiune = p.cod
-                          AND up.id_utilizator  = u.id_utilizator";
-
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
-                using (var cmd = new SqlCommand(sql, conn))
-                {
-                    cmd.Parameters.Add("@username", System.Data.SqlDbType.NVarChar, 50)
-                                  .Value = SessionInfo.Username;
-                    conn.Open();
-                    using (var reader = cmd.ExecuteReader())
-                        while (reader.Read())
-                            rezultat[reader.GetString(0)] =
-                                Convert.ToInt32(reader["acordata"]) == 1;
-                }
-            }
-            catch (Exception ex)
-            {
-                AppLogger.Error(ex, "PermissionService.CitesteToateDinBd");
-            }
-            return rezultat;
-        }
-
-        /// <summary>Invalideaza cache-ul dupa orice modificare de drepturi.</summary>
-        public static void InvalideazaCache()
-        {
-            lock (_lock) { _cache = null; }
-        }
 
         // ── Audit dedicat drepturilor ───────────────────────────────
 
@@ -312,8 +257,11 @@ namespace AppClubCalculatoare
                                           username, data_ora, detalii)
                     VALUES ('Drepturi', 0, @actiune, @user, GETDATE(), @detalii)";
 
-                using (var conn = new SqlConnection(DatabaseConfig.ConnectionString))
-                using (var cmd = new SqlCommand(sql, conn))
+                using (var conn = SqlDb.CreateConnection())
+                using (var cmd = new SqlCommand(sql, conn)
+                {
+                    CommandTimeout = SqlDb.DefaultTimeoutSeconds
+                })
                 {
                     cmd.Parameters.Add("@actiune", System.Data.SqlDbType.NVarChar, 10).Value = actiune;
                     cmd.Parameters.Add("@user",    System.Data.SqlDbType.NVarChar, 50).Value = SessionInfo.Username;

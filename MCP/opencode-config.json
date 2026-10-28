@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "desktop-automation": {
+      "command": "python",
+      "args": ["E:\\Club de Calculatoare\\MCP\\server.py"],
+      "env": {}
+    }
+  }
+}

@@ -1,5 +1,5 @@
 using System;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Data;
 using System.Threading.Tasks;
 using System.Windows.Forms;
@@ -26,6 +26,7 @@ namespace AppClubCalculatoare
         {
             _username = username;
             InitializeComponent();
+            UI.WindowChrome.EnableDarkTitleBar(this);
             lblSubHeader.Text = "Cont: " + _username;
         }
 
@@ -35,7 +36,9 @@ namespace AppClubCalculatoare
 
         private void BottomBar_Paint(object sender, PaintEventArgs e)
         {
-            using (var pen = new System.Drawing.Pen(System.Drawing.Color.FromArgb(0xE0, 0xE0, 0xE0), 1f))
+            // Linia de separare foloseste Divider din tema inchisa; un gri
+            // deschis (#E0E0E0) ar stralucea pe bara de jos inchisa.
+            using (var pen = new System.Drawing.Pen(UI.MaterialTheme.Divider, 1f))
                 e.Graphics.DrawLine(pen, 0, 0, bottomBar.Width, 0);
         }
 
@@ -61,37 +64,37 @@ namespace AppClubCalculatoare
                 string.IsNullOrWhiteSpace(txtParolaNoua.Text)  ||
                 string.IsNullOrWhiteSpace(txtConfirmare.Text))
             {
-                AfiseazaMesaj("Completeaza toate campurile!", System.Drawing.Color.Red);
+                AfiseazaMesaj("Completează toate câmpurile!", UI.MaterialTheme.DangerBright);
                 return;
             }
 
             if (txtParolaNoua.Text != txtConfirmare.Text)
             {
-                AfiseazaMesaj("Parolele noi nu coincid!", System.Drawing.Color.Red);
+                AfiseazaMesaj("Parolele noi nu coincid!", UI.MaterialTheme.DangerBright);
                 return;
             }
 
             if (txtParolaNoua.Text.Length < 6)
             {
-                AfiseazaMesaj("Parola noua trebuie sa aiba minim 6 caractere!",
-                    System.Drawing.Color.Red);
+                AfiseazaMesaj("Parola nouă trebuie să aibă minim 6 caractere!",
+                    UI.MaterialTheme.DangerBright);
                 return;
             }
 
             if (txtParolaNoua.Text == txtParolaVeche.Text)
             {
-                AfiseazaMesaj("Parola noua trebuie sa fie diferita de cea actuala!",
-                    System.Drawing.Color.OrangeRed);
+                AfiseazaMesaj("Parola nouă trebuie să fie diferită de cea actuală!",
+                    UI.MaterialTheme.WarningBright);
                 return;
             }
 
             // 2. Verifica parola actuala prin AuthService
-            AfiseazaMesaj("Se verifica...", System.Drawing.Color.Gray);
+            AfiseazaMesaj("Se verifică...", UI.MaterialTheme.TextSecondary);
             var rezultat = await AuthService.AutentificaAsync(_username, txtParolaVeche.Text);
 
             if (!rezultat.Succes)
             {
-                AfiseazaMesaj("Parola actuala este incorecta!", System.Drawing.Color.Red);
+                AfiseazaMesaj("Parola actuală este incorectă!", UI.MaterialTheme.DangerBright);
                 txtParolaVeche.Clear();
                 txtParolaVeche.Focus();
                 return;
@@ -102,7 +105,7 @@ namespace AppClubCalculatoare
             {
                 string hashNou = AuthService.HashParola(txtParolaNoua.Text);
 
-                using (var conn = new SqlConnection(_connStr))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     await conn.OpenAsync();
                     const string sql = @"
@@ -127,7 +130,7 @@ namespace AppClubCalculatoare
             catch (Exception ex)
             {
                 AppLogger.Error(ex, "FormSchimbareParola");
-                AfiseazaMesaj("Eroare la salvare: " + ex.Message, System.Drawing.Color.Red);
+                AfiseazaMesaj("Eroare la salvare: " + ex.Message, UI.MaterialTheme.DangerBright);
             }
         }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Threading.Tasks;
@@ -81,6 +82,8 @@ namespace AppClubCalculatoare.UI
         /// Daca este true, butoanele de modificare sunt dezactivate
         /// (modul "Detalii" din FormEditare).
         /// </summary>
+        [Browsable(false)]
+        [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
         public bool DoarCitire { get; set; }
 
         /// <summary>
@@ -194,6 +197,10 @@ namespace AppClubCalculatoare.UI
                 Multiline = true,
                 MaxLength = 300,
                 Font = MaterialTheme.FontBody,
+                // Fara BackColor/ForeColor, TextBox ramane alb de sistem in
+                // interiorul panoului inchis - petec alba pe suprafata petrol.
+                BackColor = MaterialTheme.SurfaceAlt,
+                ForeColor = MaterialTheme.TextPrimary,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
                 AcceptsReturn = true,
                 AcceptsTab = false,
@@ -355,8 +362,10 @@ namespace AppClubCalculatoare.UI
             {
                 Size = new Size(104, 128),
                 Margin = new Padding(4),
-                BackColor = Color.White,
-                BorderStyle = BorderStyle.FixedSingle,
+                // Panoul miniaturii tinea tema alba veche: alb pe fundal
+                // inchis arunca o retea de patrate luminoase in galerie.
+                BackColor = MaterialTheme.Surface,
+                BorderStyle = BorderStyle.None,
                 Tag = foto,
                 Cursor = Cursors.Hand
             };
@@ -366,7 +375,7 @@ namespace AppClubCalculatoare.UI
                 Location = new Point(4, 4),
                 Size = new Size(96, 96),
                 SizeMode = PictureBoxSizeMode.Zoom,
-                BackColor = Color.White,
+                BackColor = MaterialTheme.SurfaceAlt,
                 Tag = foto,
                 Cursor = Cursors.Hand
             };
@@ -390,7 +399,8 @@ namespace AppClubCalculatoare.UI
             };
             if (foto.EstePrincipala)
             {
-                lblNume.ForeColor = Color.FromArgb(0xB4, 0x86, 0x00);
+                // Auriu inchis (#B48600) are ~2.9:1 pe suprafata petrol.
+                lblNume.ForeColor = MaterialTheme.WarningBright;
                 lblNume.Font = new Font(MaterialTheme.FontFamily, 9f, FontStyle.Bold);
             }
             lblNume.Click += (s, e) => Selecteaza(foto);
@@ -492,9 +502,11 @@ namespace AppClubCalculatoare.UI
             foreach (Control c in _listaThumb.Controls)
             {
                 FotoInfo foto = c.Tag as FotoInfo;
+                // Evidentiere pe tema inchisa: albastru discret in loc de
+                // gri-lavanda deschis (#E8EAF6), care ar strica tonul galeriei.
                 c.BackColor = (foto != null && _selectat != null && foto.IdFoto == _selectat.IdFoto)
-                    ? Color.FromArgb(0xE8, 0xEA, 0xF6)
-                    : Color.White;
+                    ? MaterialTheme.HighlightAccent
+                    : MaterialTheme.Surface;
             }
         }
 
@@ -576,9 +588,10 @@ namespace AppClubCalculatoare.UI
                 return;
             }
             string nume = _selectat.NumeOriginal ?? _selectat.NumeFisier;
-            if (MessageBox.Show(string.Format("Ștergi fotografia '{0}'?", nume),
-                    "Confirmare ștergere", MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question) != DialogResult.Yes) return;
+            // FIX BUG-04: dialog propriu cu butoane românești.
+            if (!DialogHelper.ConfirmaActiune(FindForm(), "Confirmare ștergere",
+                    string.Format("Ștergi fotografia '{0}'?", nume), "Șterge", "Anulează"))
+                return;
 
             int id = _selectat.IdFoto;
             if (!PhotoService.StergeFoto(id))

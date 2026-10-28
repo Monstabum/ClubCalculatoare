@@ -1,11 +1,11 @@
 using System;
 using System.Data;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Drawing;
 using System.Windows.Forms;
 using AppClubCalculatoare.UI;
 
-namespace AppClubCalculatoare
+namespace AppClubCalculatoare 
 {
     /// <summary>
     /// Fereastra de audit a sistemului de drepturi.
@@ -36,6 +36,11 @@ namespace AppClubCalculatoare
             this.StartPosition   = FormStartPosition.CenterParent;
             this.BackColor       = MaterialTheme.Background;
             this.Font            = MaterialTheme.FontBody;
+
+            // DPI: scalare uniformă (fereastra este DPI-aware) + titlu închis.
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode       = AutoScaleMode.Dpi;
+            WindowChrome.EnableDarkTitleBar(this);
 
             BuildUI();
             IncarcaIstoric(null);
@@ -79,15 +84,15 @@ namespace AppClubCalculatoare
             {
                 Text      = "Filtrează acțiune:",
                 Font      = MaterialTheme.FontLabel,
-                ForeColor = MaterialTheme.TextSecondary,
-                Location  = new Point(12, 21),
+                ForeColor = Design.TextMuted,
+                Location  = new Point(12, 18),
                 AutoSize  = true
             };
             panel.Controls.Add(lblFiltru);
 
             cmbFiltru = new ComboBox
             {
-                Location      = new Point(140, 16),
+                Location      = new Point(140, 14),
                 Size          = new Size(160, 28),
                 Font          = MaterialTheme.FontBody,
                 DropDownStyle = ComboBoxStyle.DropDownList,
@@ -95,13 +100,14 @@ namespace AppClubCalculatoare
             };
             cmbFiltru.Items.AddRange(new object[] { "Toate", "INSERT", "UPDATE", "DELETE" });
             cmbFiltru.SelectedIndex = 0;
+            MaterialUIHelper.StyleInput(cmbFiltru);
             cmbFiltru.SelectedIndexChanged += (s, e) =>
                 IncarcaIstoric(cmbFiltru.SelectedItem.ToString() == "Toate"
                     ? null : cmbFiltru.SelectedItem.ToString());
             panel.Controls.Add(cmbFiltru);
 
-            var btnRefresh = MaterialUIHelper.Button("🔁  Reîncarcă", MaterialButtonStyle.Secondary, 140, 36);
-            btnRefresh.Location = new Point(312, 11);
+            var btnRefresh = MaterialUIHelper.Button("🔁  Reîncarcă", MaterialButtonStyle.Secondary, 140);
+            btnRefresh.Location = new Point(312, 12);
             btnRefresh.Click += (s, e) =>
                 IncarcaIstoric(cmbFiltru.SelectedIndex == 0
                     ? null : cmbFiltru.SelectedItem.ToString());
@@ -132,7 +138,7 @@ namespace AppClubCalculatoare
 
                 sql += " ORDER BY data_ora DESC";
 
-                using (var conn = new SqlConnection(_connStr))
+                using (var conn = SqlDb.CreateConnection())
                 using (var da = new SqlDataAdapter(sql, conn))
                 {
                     da.SelectCommand.Parameters.Add("@tabela", SqlDbType.NVarChar, 50)

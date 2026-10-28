@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using Microsoft.Data.SqlClient;
 using System.Drawing;
 using System.Drawing.Printing;
 using System.IO;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Windows.Forms;
 using AppClubCalculatoare.UI;
 
@@ -28,7 +30,7 @@ namespace AppClubCalculatoare
     ///     Tipareste/Inchide (dreapta) — butoane MaterialButton cu
     ///     text mereu vizibil (OnPaint custom).
     /// </summary>
-    public partial class FormCRUD : Form
+    public partial class FormCRUD : AsyncFormBase
     {
         private string tabela;
         private string connectionString;
@@ -69,11 +71,33 @@ namespace AppClubCalculatoare
             this.BackColor        = MaterialTheme.Background;
             this.Font             = MaterialTheme.FontBody;
 
-            InitializeComponent();
-            IncarcaDate();
+            // DPI: fereastra este DPI-aware (app.manifest) — scalare uniformă o
+            // singură dată (arborele e construit în InitializeComponent, deci
+            // prinde scalarea), plus bară de titlu închisă ca restul aplicației.
+            AutoScaleDimensions = new SizeF(96F, 96F);
+            AutoScaleMode       = AutoScaleMode.Dpi;
+            WindowChrome.EnableDarkTitleBar(this);
 
-            if (!string.IsNullOrWhiteSpace(filtruInitial))
-                AplicaFiltruInitial();
+            InitializeComponent();
+            // Datele se încarcă async la OnShown (fără SQL pe UI-thread).
+        }
+
+        protected override void OnShown(EventArgs e)
+        {
+            base.OnShown(e);
+            Reincarca();
+        }
+
+        /// <summary>Reîncarcă lista în fundal; filtru pre-aplicat se păstrează.</summary>
+        private void Reincarca()
+        {
+            _ = RunOperationAsync(async ct =>
+            {
+                await IncarcaDateAsync(ct);
+                if (IsDisposed) return;
+                if (!string.IsNullOrWhiteSpace(filtruInitial))
+                    AplicaFiltruInitial();
+            }, "Eroare la încărcarea datelor");
         }
 
         private void AplicaFiltruInitial()
@@ -83,7 +107,7 @@ namespace AppClubCalculatoare
 
             var txtCautare = (TextBox)gasite[0];
             txtCautare.Text = filtruInitial;
-            txtCautare.ForeColor = MaterialTheme.TextPrimary;
+            txtCautare.ForeColor = Design.Text;
             FiltreazaDate(filtruInitial);
         }
 
@@ -221,18 +245,18 @@ namespace AppClubCalculatoare
 
             var searchBox = new Panel
             {
-                Location = new System.Drawing.Point(12, 11),
+                Location = new System.Drawing.Point(12, 10),
                 Size = new System.Drawing.Size(380, 36),
-                BackColor = MaterialTheme.Background,
                 Anchor = AnchorStyles.Top | AnchorStyles.Left
             };
+            MaterialUIHelper.StyleSearchBox(searchBox);
             toolbar.Controls.Add(searchBox);
 
             var lblSearchIcon = new Label
             {
                 Text = "\uE721",   // glif Segoe Fluent Icons: lupă
                 Font = new System.Drawing.Font(MaterialTheme.GlyphFont, 12f),
-                ForeColor = MaterialTheme.TextSecondary,
+                ForeColor = Design.TextDim,
                 AutoSize = true,
                 Location = new System.Drawing.Point(10, 7),
                 BackColor = System.Drawing.Color.Transparent
@@ -243,9 +267,9 @@ namespace AppClubCalculatoare
             {
                 Name = "txtCautare",
                 BorderStyle = BorderStyle.None,
-                BackColor = MaterialTheme.Background,
-                ForeColor = MaterialTheme.TextSecondary,
-                Font = MaterialTheme.FontBody,
+                BackColor = Design.SurfaceRaised,
+                ForeColor = Design.TextDim,
+                Font = Design.FontBody,
                 Multiline = true,
                 WordWrap = false,
                 Text = "Caut\u0103...",
@@ -270,17 +294,22 @@ namespace AppClubCalculatoare
                 if (string.IsNullOrEmpty(txtCautare.Text))
                 {
                     txtCautare.Text = "Caut\u0103...";
-                    txtCautare.ForeColor = MaterialTheme.TextSecondary;
+                    txtCautare.ForeColor = Design.TextDim;
                 }
             };
             txtCautare.TextChanged += (s, e) =>
                 FiltreazaDate(txtCautare.Text == "Caut\u0103..." ? "" : txtCautare.Text);
             searchBox.Controls.Add(txtCautare);
 
-            var btnRefresh = MaterialUIHelper.Button("\U0001F504  Re\u00eencarc\u0103", MaterialButtonStyle.Secondary, 140, 36);
-            btnRefresh.Location = new System.Drawing.Point(402, 11);
-            btnRefresh.Click += (s, e) => IncarcaDate();
+            var btnRefresh = MaterialUIHelper.Button("\U0001F504  Re\u00eencarc\u0103", MaterialButtonStyle.Secondary, 140);
+            btnRefresh.Location = new System.Drawing.Point(402, 12);
+            btnRefresh.Click += (s, e) => Reincarca();
             toolbar.Controls.Add(btnRefresh);
+
+            // Capatul dreapta al ultimului buton din toolbar. lblTotal se
+            // pozitioneaza la dreapta lui, ca la latimea minima a ferestrei
+            // sa NU se suprapuna peste butonul "Importa poze" (x = 822..962).
+            int toolbarRight = btnRefresh.Right;
 
             lblTotal = new Label
             {
@@ -294,14 +323,15 @@ namespace AppClubCalculatoare
             toolbar.Resize += (s, e) =>
             {
                 lblTotal.Location = new System.Drawing.Point(
-                    System.Math.Max(560, toolbar.Width - lblTotal.Width - 16), 20);
+                    System.Math.Max(toolbarRight + 12,
+                        toolbar.Width - lblTotal.Width - 16), 20);
             };
-            lblTotal.Location = new System.Drawing.Point(800, 20);
+            lblTotal.Location = new System.Drawing.Point(toolbarRight + 12, 20);
 
             if (!string.IsNullOrWhiteSpace(filtruInitial))
             {
-                var btnArataTot = MaterialUIHelper.Button("Arat\u0103 tot", MaterialButtonStyle.Success, 110, 36);
-                btnArataTot.Location = new System.Drawing.Point(552, 11);
+                var btnArataTot = MaterialUIHelper.Button("Arat\u0103 tot", MaterialButtonStyle.Secondary, 110);
+                btnArataTot.Location = new System.Drawing.Point(552, 12);
                 btnArataTot.Click += (s, e) =>
                 {
                     txtCautare.Text = "";
@@ -309,6 +339,7 @@ namespace AppClubCalculatoare
                     txtCautare.Focus();
                 };
                 toolbar.Controls.Add(btnArataTot);
+                toolbarRight = btnArataTot.Right;
             }
 
             // POZE DEMO / IMPORT POZE: doar la Echipamente si DOAR pentru
@@ -317,19 +348,23 @@ namespace AppClubCalculatoare
             {
                 int xDemo = string.IsNullOrWhiteSpace(filtruInitial) ? 552 : 672;
                 var btnPozeDemo = MaterialUIHelper.Button(
-                    "Poze demo", MaterialButtonStyle.Primary, 140, 36);
-                btnPozeDemo.Location = new System.Drawing.Point(xDemo, 11);
+                    "Poze demo", MaterialButtonStyle.Secondary, 140);
+                btnPozeDemo.Location = new System.Drawing.Point(xDemo, 12);
                 btnPozeDemo.Click += BtnPozeDemo_Click;
                 toolbar.Controls.Add(btnPozeDemo);
 
                 // IMPORT POZE: imagini reale din folderul PozeDemo
                 // (le inlocuieste pe cele generate procedural).
                 var btnImportPoze = MaterialUIHelper.Button(
-                    "Import\u0103 poze", MaterialButtonStyle.Secondary, 140, 36);
-                btnImportPoze.Location = new System.Drawing.Point(xDemo + 150, 11);
+                    "Import\u0103 poze", MaterialButtonStyle.Secondary, 140);
+                btnImportPoze.Location = new System.Drawing.Point(xDemo + 150, 12);
                 btnImportPoze.Click += BtnImportPoze_Click;
                 toolbar.Controls.Add(btnImportPoze);
+                toolbarRight = btnImportPoze.Right;
             }
+
+            // Repoza eticheta "Total" o data ce toate butoanele sunt adaugate.
+            lblTotal.Location = new System.Drawing.Point(toolbarRight + 12, 20);
 
             // ── Header colorat (Dock.Top) — adaugat ULTIMUL ─────────
             string subtitlu = EsteAdmin ? "Gestionare \u00eenregistr\u0103ri"
@@ -500,7 +535,7 @@ namespace AppClubCalculatoare
         // ════════════════════════════════════════════════════════════
         //  ÎNCĂRCARE DATE (logica neschimbată)
         // ════════════════════════════════════════════════════════════
-        private void IncarcaDate()
+        private async Task IncarcaDateAsync(CancellationToken ct)
         {
             var txtCautare = this.Controls.Find("txtCautare", true);
             if (txtCautare.Length > 0)
@@ -510,154 +545,138 @@ namespace AppClubCalculatoare
                 txt.ForeColor = MaterialTheme.TextSecondary;
             }
 
+            string query;
+            switch (tabela)
+            {
+                case "Echipamente":
+                    query = @"SELECT p.id_echipament,
+                                     p.tip_echipament,
+                                     p.denumire,
+                                     p.oras,
+                                     p.putere_watt,
+                                     p.ram_gb,
+                                     p.numar_locuri,
+                                     p.an_achizitie,
+                                     p.tarif_ora,
+                                     p.status,
+                                     b.nume_sala,
+                                     a.nume + ' ' + a.prenume AS operator_sef,
+                                     CONVERT(VARCHAR, p.data_adaugare, 103) AS data_adaugare,
+                                     p.descriere,
+                                     (SELECT TOP 1 id_foto FROM EchipamentFoto
+                                      WHERE id_echipament = p.id_echipament
+                                        AND este_principala = 1) AS id_foto_principala
+                              FROM Echipamente p
+                              JOIN Sali b ON p.sala_id = b.id_sala
+                              LEFT JOIN Operatori a ON b.operator_sef_id = a.id_operator
+                              ORDER BY p.data_adaugare DESC";
+                    break;
+
+                case "Sali":
+                    query = @"SELECT b.id_sala, b.nume_sala, b.oras, b.adresa,
+                                     a.nume + ' ' + a.prenume AS operator_sef,
+                                     CONVERT(VARCHAR, b.data_deschidere, 103) AS data_deschidere
+                              FROM Sali b
+                              LEFT JOIN Operatori a ON b.operator_sef_id = a.id_operator
+                              ORDER BY b.nume_sala";
+                    break;
+
+                case "Membri":
+                    query = @"SELECT c.id_membru, c.nume, c.prenume, c.telefon, c.email,
+                                     c.tip_membru, c.buget_max, c.oras_interes,
+                                     CONVERT(VARCHAR, c.data_inregistrare, 103) AS data_inregistrare
+                              FROM Membri c
+                              ORDER BY c.data_inregistrare DESC";
+                    break;
+
+                case "Sesiuni":
+                    // Q8: totalul pe operator se calculează o singură dată,
+                    // cu window function, nu cu un subquery corelat pe fiecare rând.
+                    query = @"SELECT
+                                  t.id_sesiune,
+                                  p.denumire                       AS echipament,
+                                  c.nume + ' ' + c.prenume        AS membru,
+                                  a.nume + ' ' + a.prenume        AS operator,
+                                  t.tip_sesiune,
+                                  CONVERT(VARCHAR, t.data_sesiune, 103) AS data_sesiune,
+                                  t.durata_minute,
+                                  t.cost_total,
+                                  t.incasare,
+                                  t.status,
+                                  t.observatii,
+                                  SUM(t.incasare) OVER (PARTITION BY t.id_operator)
+                                      AS incasare_total_operator
+                              FROM Sesiuni t
+                              JOIN Echipamente p ON t.id_echipament = p.id_echipament
+                              JOIN Membri     c ON t.id_membru      = c.id_membru
+                              JOIN Operatori      a ON t.id_operator       = a.id_operator
+                              ORDER BY t.data_sesiune DESC, t.id_sesiune DESC";
+                    break;
+
+                case "Rezervari":
+                    query = @"SELECT
+                                  v.id_rezervare,
+                                  p.denumire                       AS echipament,
+                                  c.nume + ' ' + c.prenume        AS membru,
+                                  a.nume + ' ' + a.prenume        AS operator,
+                                  CONVERT(VARCHAR, v.data_rezervare, 120) AS data_rezervare,
+                                  v.status,
+                                  v.observatii
+                              FROM Rezervari v
+                              JOIN Echipamente p ON v.id_echipament = p.id_echipament
+                              JOIN Membri     c ON v.id_membru      = c.id_membru
+                              JOIN Operatori      a ON v.id_operator       = a.id_operator
+                              ORDER BY v.data_rezervare DESC, v.id_rezervare DESC";
+                    break;
+
+                case "Operatori":
+                    query = @"SELECT a.id_operator, a.nume, a.prenume, a.rol_club,
+                                     a.telefon, a.email,
+                                     b.nume_sala,
+                                     CONVERT(VARCHAR, a.data_angajare, 103) AS data_angajare
+                              FROM Operatori a
+                              LEFT JOIN Sali b ON a.sala_id = b.id_sala
+                              ORDER BY a.nume";
+                    break;
+
+                default:
+                    // FIX: whitelist — tabela vine din cod intern, dar nu
+                    // construim SQL din valori arbitrare; tabele necunoscute = eroare.
+                    throw new InvalidOperationException(
+                        "Tabela necunoscuta pentru listare: " + tabela);
+            }
+
+            DataTable dt;
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
-                {
-                    string query;
-                    switch (tabela)
-                    {
-                        case "Echipamente":
-                            query = @"SELECT p.id_echipament,
-                                             p.tip_echipament,
-                                             p.denumire,
-                                             p.oras,
-                                             p.putere_watt,
-                                             p.ram_gb,
-                                             p.numar_locuri,
-                                             p.an_achizitie,
-                                             p.tarif_ora,
-                                             p.status,
-                                             b.nume_sala,
-                                             a.nume + ' ' + a.prenume AS operator_sef,
-                                             CONVERT(VARCHAR, p.data_adaugare, 103) AS data_adaugare,
-                                             p.descriere,
-                                             (SELECT TOP 1 id_foto FROM EchipamentFoto
-                                              WHERE id_echipament = p.id_echipament
-                                                AND este_principala = 1) AS id_foto_principala
-                                      FROM Echipamente p
-                                      JOIN Sali b ON p.sala_id = b.id_sala
-                                      LEFT JOIN Operatori a ON b.operator_sef_id = a.id_operator
-                                      ORDER BY p.data_adaugare DESC";
-                            break;
-
-                        case "Sali":
-                            query = @"SELECT b.id_sala, b.nume_sala, b.oras, b.adresa,
-                                             a.nume + ' ' + a.prenume AS operator_sef,
-                                             CONVERT(VARCHAR, b.data_deschidere, 103) AS data_deschidere
-                                      FROM Sali b
-                                      LEFT JOIN Operatori a ON b.operator_sef_id = a.id_operator
-                                      ORDER BY b.nume_sala";
-                            break;
-
-                        case "Membri":
-                            query = @"SELECT c.id_membru, c.nume, c.prenume, c.telefon, c.email,
-                                             c.tip_membru, c.buget_max, c.oras_interes,
-                                             CONVERT(VARCHAR, c.data_inregistrare, 103) AS data_inregistrare
-                                      FROM Membri c
-                                      ORDER BY c.data_inregistrare DESC";
-                            break;
-
-                        case "Sesiuni":
-                            query = @"SELECT
-                                          t.id_sesiune,
-                                          p.denumire                       AS echipament,
-                                          c.nume + ' ' + c.prenume        AS membru,
-                                          a.nume + ' ' + a.prenume        AS operator,
-                                          t.tip_sesiune,
-                                          CONVERT(VARCHAR, t.data_sesiune, 103) AS data_sesiune,
-                                          t.durata_minute,
-                                          t.cost_total,
-                                          t.incasare,
-                                          t.status,
-                                          t.observatii,
-                                          (SELECT ISNULL(SUM(t2.incasare), 0)
-                                           FROM   Sesiuni t2
-                                           WHERE  t2.id_operator = t.id_operator) AS incasare_total_operator
-                                      FROM Sesiuni t
-                                      JOIN Echipamente p ON t.id_echipament = p.id_echipament
-                                      JOIN Membri     c ON t.id_membru      = c.id_membru
-                                      JOIN Operatori      a ON t.id_operator       = a.id_operator
-                                      ORDER BY t.data_sesiune DESC";
-                            break;
-
-                        case "Rezervari":
-                            query = @"SELECT
-                                          v.id_rezervare,
-                                          p.denumire                       AS echipament,
-                                          c.nume + ' ' + c.prenume        AS membru,
-                                          a.nume + ' ' + a.prenume        AS operator,
-                                          CONVERT(VARCHAR, v.data_rezervare, 120) AS data_rezervare,
-                                          v.status,
-                                          v.observatii
-                                      FROM Rezervari v
-                                      JOIN Echipamente p ON v.id_echipament = p.id_echipament
-                                      JOIN Membri     c ON v.id_membru      = c.id_membru
-                                      JOIN Operatori      a ON v.id_operator       = a.id_operator
-                                      ORDER BY v.data_rezervare DESC";
-                            break;
-
-                        case "Operatori":
-                            query = @"SELECT a.id_operator, a.nume, a.prenume, a.rol_club,
-                                             a.telefon, a.email,
-                                             b.nume_sala,
-                                             CONVERT(VARCHAR, a.data_angajare, 103) AS data_angajare
-                                      FROM Operatori a
-                                      LEFT JOIN Sali b ON a.sala_id = b.id_sala
-                                      ORDER BY a.nume";
-                            break;
-
-                        default:
-                            // FIX: whitelist — tabela vine din cod intern, dar nu
-                            // construim SQL din valori arbitrare; tabele necunoscute = eroare.
-                            throw new InvalidOperationException(
-                                "Tabela necunoscuta pentru listare: " + tabela);
-                    }
-
-                    using (SqlDataAdapter da = new SqlDataAdapter(query, conn))
-                    {
-                        DataTable dt = new DataTable();
-                    try
-                    {
-                        da.Fill(dt);
-                    }
-                    catch (SqlException exFill)
-                    {
-                        // MODUL_FOTO: baza fara migrare — lista merge si fara miniaturi.
-                        if (tabela == "Echipamente" &&
-                            exFill.Message.Contains("EchipamentFoto"))
-                        {
-                            AppLogger.Warn(
-                                "Tabela EchipamentFoto lipseste — lista fara miniaturi. " +
-                                "Ruleaza BD\\MigrareFoto.sql.", "FormCRUD.IncarcaDate");
-                            da.SelectCommand.CommandText = query.Replace(
-                                @",
-                                             (SELECT TOP 1 id_foto FROM EchipamentFoto
-                                              WHERE id_echipament = p.id_echipament
-                                                AND este_principala = 1) AS id_foto_principala",
-                                "");
-                            dt.Clear();
-                            da.Fill(dt);
-                        }
-                        else throw;
-                    }
-
-                    _dataCache = dt;
-                    dgv.DataSource = dt;
-                    ConfigureazaColoanaFoto();
-                    ActualizeazaTotal();
-                    // MODUL_FOTO: randurile au fost recreate — eliberam
-                    // miniaturile vechi (se recitesc doar cele afisate).
-                    GolesteCacheFoto();
-                    }
-                }
+                dt = await SqlDb.QueryDataTableAsync(query, null, ct);
             }
-            catch (Exception ex)
+            catch (SqlException exFill) when (
+                tabela == "Echipamente" &&
+                exFill.Message.Contains("EchipamentFoto"))
             {
-                AppLogger.Error(ex, "FormCRUD.IncarcaDate");
-                MessageBox.Show("Eroare la incarcarea datelor: " + ex.Message,
-                    "Eroare", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                // MODUL_FOTO: baza fara migrare — lista merge si fara miniaturi.
+                AppLogger.Warn(
+                    "Tabela EchipamentFoto lipseste — lista fara miniaturi. " +
+                    "Ruleaza BD\\MigrareFoto.sql.", "FormCRUD.IncarcaDate");
+                query = query.Replace(
+                    @",
+                                     (SELECT TOP 1 id_foto FROM EchipamentFoto
+                                      WHERE id_echipament = p.id_echipament
+                                        AND este_principala = 1) AS id_foto_principala",
+                    "");
+                dt = await SqlDb.QueryDataTableAsync(query, null, ct);
             }
+
+            if (IsDisposed || ct.IsCancellationRequested) return;
+
+            _dataCache = dt;
+            dgv.DataSource = dt;
+            ConfigureazaColoanaFoto();
+            ActualizeazaTotal();
+            // MODUL_FOTO: randurile au fost recreate — eliberam
+            // miniaturile vechi (se recitesc doar cele afisate).
+            GolesteCacheFoto();
         }
 
         // ════════════════════════════════════════════════════════════
@@ -739,13 +758,17 @@ namespace AppClubCalculatoare
         private Image PlaceholderFoto()
         {
             if (_placeholderFoto != null) return _placeholderFoto;
+            // Placeholder pe tema inchisa — un patratel ALB cu text gri
+            // atragea atentia ca o pata luminoasa in grila inchisa.
             Bitmap bmp = new Bitmap(56, 56);
             using (Graphics g = Graphics.FromImage(bmp))
             {
-                g.Clear(Color.FromArgb(0xEE, 0xEE, 0xEE));
+                g.Clear(MaterialTheme.SurfaceAlt);
                 using (Font f = new Font("Segoe UI", 8f))
-                    g.DrawString("foto", f, Brushes.Gray, new PointF(12f, 20f));
-                g.DrawRectangle(Pens.Gray, 0, 0, 55, 55);
+                    g.DrawString("foto", f, new SolidBrush(MaterialTheme.TextSecondary),
+                        new PointF(12f, 20f));
+                using (var pen = new Pen(MaterialTheme.Divider, 1f))
+                    g.DrawRectangle(pen, 0, 0, 55, 55);
             }
             _placeholderFoto = bmp;
             return _placeholderFoto;
@@ -791,7 +814,7 @@ namespace AppClubCalculatoare
 
             try
             {
-                using (var conn = new SqlConnection(connectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     const string query = @"
                         SELECT DISTINCT
@@ -881,7 +904,16 @@ namespace AppClubCalculatoare
             }
             if (tabela != "Sesiuni" || e.RowIndex < 0) return;
             if (dgv.Columns[e.ColumnIndex].Name == "incasare_total_operator")
-                e.CellStyle.BackColor = Color.FromArgb(0xFE, 0xF3, 0xC7);
+            {
+                // Evidentiere pe tema inchisa: fundal cald + text portocaliu
+                // luminos. Varianta anterioara (galben deschis #FEF3C7) cu
+                // textul alb al grilei facea cifra complet invizibila.
+                e.CellStyle.BackColor = MaterialTheme.HighlightWarning;
+                e.CellStyle.ForeColor = MaterialTheme.WarningBright;
+                e.CellStyle.SelectionBackColor =
+                    MaterialTheme.Blend(Design.Surface, Design.Alpha(Design.Warning, 90));
+                e.CellStyle.SelectionForeColor = MaterialTheme.WarningBright;
+            }
         }
 
         // ════════════════════════════════════════════════════════════
@@ -893,7 +925,7 @@ namespace AppClubCalculatoare
             // pentru non-admin — verificarea se face prin permisiuni, nu prin rol.
             if (!VerificaPermisiuneActiune(PuncteAcces.CodModificare(tabela))) return;
             var frm = new FormEditare(tabela, connectionString, -1);
-            if (frm.ShowDialog() == DialogResult.OK) IncarcaDate();
+            if (frm.ShowDialog() == DialogResult.OK) Reincarca();
         }
 
         // POZE DEMO: genereaza 2 imagini/obiect pentru echipamentele goale.
@@ -912,12 +944,11 @@ namespace AppClubCalculatoare
                     "Poze demo", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-            if (MessageBox.Show(
+            // FIX BUG-04: dialog propriu cu butoane românești.
+            if (!DialogHelper.Confirma(this, "Poze demo",
                     string.Format(
-                        "Se genereaza 2 poze demo pentru {0} echipamente fara fotografii?",
-                        goale.Count),
-                    "Poze demo", MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question) != DialogResult.Yes) return;
+                        "Se generează 2 poze demo pentru {0} echipamente fără fotografii?",
+                        goale.Count))) return;
 
             this.Cursor = Cursors.WaitCursor;
             try
@@ -926,7 +957,7 @@ namespace AppClubCalculatoare
                 int adaugate = DemoPoze.GenereazaPozeDemo(out mesaj);
                 MessageBox.Show(mesaj, "Poze demo", MessageBoxButtons.OK,
                     adaugate > 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
-                IncarcaDate();
+                Reincarca();
             }
             finally
             {
@@ -973,14 +1004,13 @@ namespace AppClubCalculatoare
 
             string numeFolder = Path.GetFileName(folder.TrimEnd(
                 Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-            if (MessageBox.Show(
+            // FIX BUG-04: dialog propriu cu butoane românești.
+            if (!DialogHelper.Confirma(this, "Import poze",
                     string.Format(
-                        "Se importa {0} imagini din \"{1}\" pentru {2} echipamente?\n\n" +
+                        "Se importă {0} imagini din \"{1}\" pentru {2} echipamente?\n\n" +
                         "Fotografiile existente ale acestor echipamente vor fi " +
-                        "sterse si inlocuite.",
-                        nrFisiere, numeFolder, plan.Count),
-                    "Import poze", MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question) != DialogResult.Yes) return;
+                        "șterse și înlocuite.",
+                        nrFisiere, numeFolder, plan.Count))) return;
 
             this.Cursor = Cursors.WaitCursor;
             try
@@ -989,7 +1019,7 @@ namespace AppClubCalculatoare
                 int adaugate = ImportPozeFolder.Importa(folder, true, out mesaj);
                 MessageBox.Show(mesaj, "Import poze", MessageBoxButtons.OK,
                     adaugate > 0 ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
-                IncarcaDate();
+                Reincarca();
             }
             finally
             {
@@ -1013,7 +1043,7 @@ namespace AppClubCalculatoare
             DialogResult rezultat = frm.ShowDialog();
             // MODUL_FOTO: pozele se salveaza direct din tab-ul Fotografii,
             // chiar si la Cancel — reincarcam lista Echipamente mereu.
-            if (rezultat == DialogResult.OK || tabela == "Echipamente") IncarcaDate();
+            if (rezultat == DialogResult.OK || tabela == "Echipamente") Reincarca();
         }
 
         private void BtnSterge_Click(object sender, EventArgs e)
@@ -1050,9 +1080,9 @@ namespace AppClubCalculatoare
                 return;
             }
 
-            if (MessageBox.Show($"Esti sigur ca vrei sa stergi '{nume}'?",
-                    "Confirmare stergere", MessageBoxButtons.YesNo,
-                    MessageBoxIcon.Question) == DialogResult.Yes)
+            // FIX BUG-04: dialog propriu cu butoane românești.
+            if (DialogHelper.ConfirmaActiune(this, "Confirmare ștergere",
+                    $"Ești sigur că vrei să ștergi '{nume}'?", "Șterge", "Anulează"))
                 StergeInregistrare(id);
         }
 
@@ -1063,7 +1093,7 @@ namespace AppClubCalculatoare
         {
             try
             {
-                using (var conn = new SqlConnection(connectionString))
+                using (var conn = SqlDb.CreateConnection())
                 {
                     conn.Open();
                     string query = null;
@@ -1120,7 +1150,7 @@ namespace AppClubCalculatoare
         {
             try
             {
-                using (SqlConnection conn = new SqlConnection(connectionString))
+                using (SqlConnection conn = SqlDb.CreateConnection())
                 {
                     conn.Open();
 
@@ -1168,7 +1198,7 @@ namespace AppClubCalculatoare
                         "FormCRUD");
                     MessageBox.Show("Inregistrare stearsa cu succes!",
                         "Succes", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    IncarcaDate();
+                    Reincarca();
                 }
             }
             catch (Exception ex)
@@ -1223,7 +1253,7 @@ namespace AppClubCalculatoare
         //  FAVORITE — comutarea echipamentului selectat in lista
         //  de favorite a utilizatorului curent (tabela Favorite).
         // ══════════════════════════════════════════════════════════
-        private void BtnFavorit_Click(object sender, EventArgs e)
+        private async void BtnFavorit_Click(object sender, EventArgs e)
         {
             if (!VerificaPermisiuneActiune(PuncteAcces.Favorite)) return;
 
@@ -1238,7 +1268,7 @@ namespace AppClubCalculatoare
 
             try
             {
-                bool acumFavorit = FavoriteService.Comuteaza(id);
+                bool acumFavorit = await FavoriteService.ComuteazaAsync(id);
                 MessageBox.Show(
                     acumFavorit
                         ? "Echipamentul a fost adaugat la favorite!\n" +
@@ -1300,17 +1330,18 @@ namespace AppClubCalculatoare
                     g.DrawString(
                         $"Tabel: {tabela}   |   {DateTime.Now:dd.MM.yyyy HH:mm}   |   " +
                         $"Total inregistrari: {dt.Rows.Count}",
-                        fontTitlu, Brushes.DarkBlue, leftMargin, y);
+                        fontTitlu, Brushes.Black, leftMargin, y);
                     y += 22f;
 
                     int colStart = dt.Columns.Count > 1 ? 1 : 0;
                     int numCols = dt.Columns.Count - colStart;
+                    if (numCols <= 0) { ev.HasMorePages = false; return; }
                     float colW = (pageW - leftMargin * 2) / numCols;
 
                     float xc = leftMargin;
                     for (int ci = colStart; ci < dt.Columns.Count; ci++)
                     {
-                        using (var brushHeader = new SolidBrush(Color.FromArgb(0x3F, 0x51, 0xB5)))
+                        using (var brushHeader = new SolidBrush(Color.FromArgb(0x27, 0x27, 0x2A)))
                             g.FillRectangle(brushHeader,
                                 new RectangleF(xc, y, colW, lineH));
                         g.DrawString(dt.Columns[ci].ColumnName, fontHeader,
@@ -1333,7 +1364,7 @@ namespace AppClubCalculatoare
                         }
 
                         if (alt)
-                            using (var brushAlt = new SolidBrush(Color.FromArgb(240, 245, 255)))
+                            using (var brushAlt = new SolidBrush(Color.FromArgb(0xF4, 0xF4, 0xF5)))
                                 g.FillRectangle(brushAlt,
                                     new RectangleF(leftMargin, y, pageW - leftMargin * 2, lineH));
 
